@@ -6,14 +6,13 @@ import { useAuth } from '../context/AuthContext';
 import { createOrderAndDeductStock } from '../services/orderService';
 import { initiateRazorpayPayment, simulatePayment, processCOD } from '../services/paymentService';
 import toast from 'react-hot-toast';
-import { FiCreditCard, FiTruck, FiMapPin, FiCheckCircle, FiXCircle, FiDownload } from 'react-icons/fi';
+import { FiCreditCard, FiTruck, FiMapPin, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+
 
 const Checkout = () => {
     const { cartItems, getSubtotal, getGST, getTotal, clearCart } = useCart();
-    const { user } = useAuth();
+    const { user, customerId, address: profileAddress } = useAuth();
     const navigate = useNavigate();
     const [paymentMethod, setPaymentMethod] = useState('online');
     const [processing, setProcessing] = useState(false);
@@ -23,7 +22,12 @@ const Checkout = () => {
     const [finalOrderItems, setFinalOrderItems] = useState([]);
     const [finalOrderTotal, setFinalOrderTotal] = useState(0);
     const [address, setAddress] = useState({
-        fullName: user?.displayName || '', phone: '', street: '', city: '', state: '', pincode: ''
+        fullName: user?.displayName || '',
+        phone: profileAddress?.phone || '',
+        street: profileAddress?.street || '',
+        city: profileAddress?.city || '',
+        state: profileAddress?.state || '',
+        pincode: profileAddress?.pincode || ''
     });
 
     const handleInputChange = (e) => setAddress(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -44,7 +48,7 @@ const Checkout = () => {
         try {
             if (paymentMethod === 'cod') {
                 const codResult = processCOD({ amount: orderTotal });
-                const newOrderId = await createOrderAndDeductStock(user.uid, currentItems, codResult.paymentId, 'success', orderTotal, { ...address, email: user.email }, 'cod');
+                const newOrderId = await createOrderAndDeductStock(user.uid, currentItems, codResult.paymentId, 'success', orderTotal, { ...address, email: user.email, customerId: customerId || '' }, 'cod');
                 setOrderId(newOrderId);
                 setFinalOrderItems(currentItems);
                 setFinalOrderTotal(orderTotal);
@@ -54,7 +58,7 @@ const Checkout = () => {
                 const orderDetails = { amount: orderTotal, items: currentItems, customerName: address.fullName, customerEmail: user.email, customerPhone: address.phone };
                 const onSuccess = async (result) => {
                     try {
-                        const id = await createOrderAndDeductStock(user.uid, currentItems, result.paymentId, 'success', orderTotal, { ...address, email: user.email }, 'online');
+                        const id = await createOrderAndDeductStock(user.uid, currentItems, result.paymentId, 'success', orderTotal, { ...address, email: user.email, customerId: customerId || '' }, 'online');
                         setOrderId(id);
                         setFinalOrderItems(currentItems);
                         setFinalOrderTotal(orderTotal);
@@ -72,118 +76,7 @@ const Checkout = () => {
         setProcessing(false);
     };
 
-    const downloadInvoice = () => {
-        const doc = new jsPDF("p", "mm", "a4");
-        const date = new Date().toLocaleDateString('en-IN');
-        const invoiceNo = `${orderId.slice(0, 10).toUpperCase()}`;
 
-        // 1. Blue Header Section
-        doc.setFillColor(190, 215, 235); // Light Blue Background
-        doc.rect(0, 0, 210, 65, 'F');
-
-        // Shop Details (Left)
-        doc.setFontSize(10);
-        doc.setTextColor(80, 80, 80);
-        doc.setFont("helvetica", "normal");
-        const shopDetails = [
-            "Sri Ranga Supermarket",
-            "C57, 4th Cross Street,",
-            "Thillai Nagar, Trichy",
-            "Tel: +91 8056644344",
-            "Email: rengafoods19@gmail.com"
-        ];
-        shopDetails.forEach((line, i) => {
-            doc.text(line, 55, 25 + (i * 5));
-        });
-
-        // "RECEIPT" text (Right)
-        doc.setFontSize(35);
-        doc.setTextColor(45, 84, 127); // Dark Blue
-        doc.setFont("helvetica", "bold");
-        doc.text("RECEIPT", 140, 42);
-
-        // 2. Customer & Invoice Info
-        doc.setTextColor(0, 0, 0);
-
-        // Left Column: Customer info from the address state
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.text(address.fullName.toUpperCase(), 15, 80);
-        doc.setFont("helvetica", "normal");
-        doc.text(address.phone, 15, 86);
-        doc.text(user.email || '', 15, 92);
-
-        // Right Column
-        doc.setFont("helvetica", "bold");
-        doc.text("Order Date:", 115, 80);
-        doc.setFont("helvetica", "normal");
-        doc.text(date, 150, 80);
-
-        // 4. Horizontal Separator with Customer ID
-        doc.setDrawColor(220, 220, 220);
-        doc.line(15, 105, 195, 105);
-        doc.setFontSize(9);
-        doc.text(`Customer ID : ${user.uid.slice(0, 12).toUpperCase()} | Order ID: ${orderId.slice(0, 12).toUpperCase()}`, 105, 112, { align: 'center' });
-        doc.line(15, 118, 195, 118);
-
-        // 5. Items Table
-        const tableColumn = ["#", "ITEM DESCRIPTION", "QUANTITY", "UNIT PRICE", "GST (5%)", "AMOUNT ( INR )"];
-        const tableRows = finalOrderItems.map((item, index) => {
-            const dp = item.price - (item.price * (item.discount || 0) / 100);
-            const gstAmount = dp * item.quantity * 0.05;
-            const subtotal = (dp * item.quantity) + gstAmount;
-            return [
-                index + 1,
-                item.name.toUpperCase(),
-                item.quantity,
-                dp.toFixed(2),
-                gstAmount.toFixed(2),
-                subtotal.toFixed(2)
-            ];
-        });
-
-        autoTable(doc, {
-            head: [tableColumn],
-            body: tableRows,
-            startY: 125,
-            theme: 'plain',
-            headStyles: {
-                fillColor: [190, 215, 235],
-                textColor: [45, 84, 127],
-                fontSize: 9,
-                fontStyle: 'bold',
-                halign: 'center'
-            },
-            bodyStyles: {
-                fontSize: 9,
-                halign: 'center'
-            },
-            columnStyles: {
-                1: { halign: 'left' }
-            },
-            margin: { left: 15, right: 15 }
-        });
-
-        const finalY = doc.lastAutoTable.finalY;
-
-        // 6. Net Total
-        doc.setFillColor(45, 84, 127);
-        doc.rect(120, finalY + 5, 75, 10, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        doc.text("Net Total", 125, finalY + 11.5);
-        doc.text(`${finalOrderTotal.toFixed(2)}`, 190, finalY + 11.5, { align: 'right' });
-
-        // 7. Footer
-        doc.setFillColor(190, 215, 235);
-        doc.rect(15, finalY + 30, 180, 12, 'F');
-        doc.setTextColor(80, 80, 80);
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "normal");
-        doc.text("Thanks for shopping in Sri Ranga SuperMarket!!Order again!!", 105, finalY + 37.5, { align: 'center' });
-
-        doc.save(`SRS_Invoice_${orderId.slice(0, 8)}.pdf`);
-    };
 
     // Order Confirmed View
     if (orderPlaced) return (
@@ -219,13 +112,6 @@ const Checkout = () => {
                             <span>₹{finalOrderTotal.toFixed(2)}</span>
                         </div>
                     </div>
-
-                    <button
-                        onClick={downloadInvoice}
-                        className="w-full py-2.5 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-all flex items-center justify-center gap-2 mb-3 text-sm"
-                    >
-                        <FiDownload /> Download Invoice
-                    </button>
 
                     <div className="flex gap-2">
                         <button onClick={() => navigate('/orders')} className="flex-1 py-2.5 bg-[#2e7d32] text-white font-semibold rounded-lg hover:bg-[#1b5e20] text-xs">View Orders</button>

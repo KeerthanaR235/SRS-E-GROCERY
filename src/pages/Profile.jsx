@@ -1,23 +1,36 @@
 // Profile Page - User profile details and account management
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { FiUser, FiMail, FiCalendar, FiShield, FiEdit2, FiSave, FiLogOut, FiHash } from 'react-icons/fi';
+import { FiUser, FiMail, FiCalendar, FiShield, FiEdit2, FiSave, FiLogOut, FiHash, FiMapPin, FiPhone } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const Profile = () => {
-    const { user, userRole, customerId, logout } = useAuth();
+    const { user, userRole, customerId, address, logout, updateUserProfile } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
     const [name, setName] = useState(user?.displayName || '');
+    const [editAddress, setEditAddress] = useState({
+        street: address?.street || '',
+        city: address?.city || '',
+        state: address?.state || '',
+        pincode: address?.pincode || '',
+        phone: address?.phone || '',
+    });
+    const [saving, setSaving] = useState(false);
 
     const handleSave = async () => {
+        if (!name.trim()) {
+            toast.error('Name cannot be empty');
+            return;
+        }
+        setSaving(true);
         try {
-            // In a real app, we'd update the profile in Firebase Auth and Firestore
-            // For now, we'll just simulate it or show a toast
+            await updateUserProfile(name.trim(), editAddress);
             toast.success('Profile updated successfully!');
             setIsEditing(false);
         } catch (error) {
             toast.error('Failed to update profile');
         }
+        setSaving(false);
     };
 
     const dateJoined = user?.metadata?.creationTime
@@ -45,12 +58,13 @@ const Profile = () => {
                             </div>
                             <button
                                 onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+                                disabled={saving}
                                 className={`flex items-center gap-2 px-6 py-2 rounded-xl font-semibold transition-all ${isEditing
                                         ? 'bg-green-600 text-white hover:bg-green-700'
                                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }`}
+                                    } disabled:opacity-50`}
                             >
-                                {isEditing ? <><FiSave /> Save Details</> : <><FiEdit2 /> Edit Profile</>}
+                                {isEditing ? <><FiSave /> {saving ? 'Saving...' : 'Save Details'}</> : <><FiEdit2 /> Edit Profile</>}
                             </button>
                         </div>
 
@@ -110,6 +124,73 @@ const Profile = () => {
                                     <div className="flex items-center gap-3 bg-gray-50 text-gray-600 px-4 py-3 rounded-xl border border-gray-100">
                                         <FiCalendar />
                                         <span className="font-semibold">{dateJoined}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Address Section */}
+                        <div className="mt-10 pt-8 border-t border-gray-100">
+                            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><FiMapPin className="text-blue-600" /> Delivery Address</h3>
+                            <div className="grid sm:grid-cols-2 gap-4">
+                                <div className="sm:col-span-2">
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Street / House No.</label>
+                                    <input
+                                        type="text"
+                                        value={editAddress.street}
+                                        disabled={!isEditing}
+                                        onChange={(e) => setEditAddress({ ...editAddress, street: e.target.value })}
+                                        placeholder="Enter your street address"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-blue-500 focus:outline-none transition-all disabled:opacity-70"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">City</label>
+                                    <input
+                                        type="text"
+                                        value={editAddress.city}
+                                        disabled={!isEditing}
+                                        onChange={(e) => setEditAddress({ ...editAddress, city: e.target.value })}
+                                        placeholder="City"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-blue-500 focus:outline-none transition-all disabled:opacity-70"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">State</label>
+                                    <input
+                                        type="text"
+                                        value={editAddress.state}
+                                        disabled={!isEditing}
+                                        onChange={(e) => setEditAddress({ ...editAddress, state: e.target.value })}
+                                        placeholder="State"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-blue-500 focus:outline-none transition-all disabled:opacity-70"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Pincode</label>
+                                    <input
+                                        type="text"
+                                        value={editAddress.pincode}
+                                        disabled={!isEditing}
+                                        onChange={(e) => setEditAddress({ ...editAddress, pincode: e.target.value })}
+                                        placeholder="Pincode"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-blue-500 focus:outline-none transition-all disabled:opacity-70"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Phone Number</label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                            <FiPhone />
+                                        </div>
+                                        <input
+                                            type="tel"
+                                            value={editAddress.phone}
+                                            disabled={!isEditing}
+                                            onChange={(e) => setEditAddress({ ...editAddress, phone: e.target.value })}
+                                            placeholder="Phone number"
+                                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-blue-500 focus:outline-none transition-all disabled:opacity-70"
+                                        />
                                     </div>
                                 </div>
                             </div>

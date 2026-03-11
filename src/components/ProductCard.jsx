@@ -7,7 +7,12 @@ const ProductCard = ({ product, onViewDetails }) => {
     const { addToCart } = useCart();
     const { toggleWishlist, isInWishlist } = useWishlist();
     const wishlisted = isInWishlist(product.id);
-    const isOutOfStock = product.stock <= 0;
+
+    // Check stock across all brands/variants — only "out of stock" if every variant is 0
+    const totalStock = product.brands && product.brands.length > 0
+        ? product.brands.reduce((sum, b) => sum + (b.variants || []).reduce((vs, v) => vs + Number(v.stock || 0), 0), 0)
+        : Number(product.stock || 0);
+    const isOutOfStock = totalStock <= 0;
 
     return (
         <div
@@ -83,7 +88,7 @@ const ProductCard = ({ product, onViewDetails }) => {
                 {/* Interaction / Views */}
                 <div className="flex items-center gap-1.5 text-gray-400 mb-4">
                     <FiEye className="text-[13px]" />
-                    <span className="text-[11px] font-bold">{product.stock || 0} in stock</span>
+                    <span className="text-[11px] font-bold">{totalStock} in stock</span>
                 </div>
 
                 {/* Price & Add to Cart */}

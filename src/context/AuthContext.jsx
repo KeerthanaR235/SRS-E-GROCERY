@@ -8,7 +8,7 @@ import {
     signInWithPopup,
     updateProfile
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../firebase/firebase';
 
 const AuthContext = createContext();
@@ -26,6 +26,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [userRole, setUserRole] = useState(null);
     const [customerId, setCustomerId] = useState(null);
+    const [address, setAddress] = useState({ street: '', city: '', state: '', pincode: '', phone: '' });
     const [loading, setLoading] = useState(true);
 
     // Listen for auth state changes
@@ -39,7 +40,16 @@ export const AuthProvider = ({ children }) => {
                     if (userDoc.exists()) {
                         const data = userDoc.data();
                         setUserRole(data.role || 'user');
-                        setCustomerId(data.customerId || null);
+                        setAddress(data.address || { street: '', city: '', state: '', pincode: '', phone: '' });
+
+                        // Generate customerId for existing users who don't have one
+                        if (data.customerId) {
+                            setCustomerId(data.customerId);
+                        } else {
+                            const newCustomerId = generateCustomerId();
+                            await updateDoc(doc(db, 'users', currentUser.uid), { customerId: newCustomerId });
+                            setCustomerId(newCustomerId);
+                        }
                     } else {
                         // For new users, if email contains 'admin', default to admin (for easier setup)
                         const defaultRole = currentUser.email?.toLowerCase().includes('admin') ? 'admin' : 'user';
@@ -118,15 +128,28 @@ export const AuthProvider = ({ children }) => {
         return signOut(auth);
     };
 
+    // Update user profile (display name + address)
+    const updateUserProfile = async (newName, newAddress) => {
+        if (!auth.currentUser) throw new Error('Not authenticated');
+        await updateProfile(auth.currentUser, { displayName: newName });
+        const updateData = { name: newName };
+        if (newAddress) updateData.address = newAddress;
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), updateData);
+        if (newAddress) setAddress(newAddress);
+        setUser({ ...auth.currentUser });
+    };
+
     const value = {
         user,
         userRole,
         customerId,
+        address,
         loading,
         signup,
         login,
         signInWithGoogle,
         logout,
+        updateUserProfile,
         isAdmin: userRole === 'admin'
     };
 

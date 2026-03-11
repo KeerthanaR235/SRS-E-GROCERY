@@ -113,10 +113,41 @@ const ProductsManagement = ({ products }) => {
     const [editData, setEditData] = useState({});
     const [deleting, setDeleting] = useState(null);
 
-    const handleEdit = (product) => { setEditId(product.id); setEditData({ ...product }); };
+    const handleEdit = (product) => {
+        setEditId(product.id);
+        setEditData({
+            ...product,
+            brands: product.brands && product.brands.length > 0
+                ? product.brands.map(b => ({ ...b, variants: b.variants.map(v => ({ ...v })) }))
+                : [{ name: product.brand || '', variants: [{ quantity: product.quantity || '', price: product.price || '', stock: product.stock || '' }] }]
+        });
+    };
+
+    const handleEditVariantChange = (brandIndex, varIndex, field, value) => {
+        const newBrands = [...editData.brands];
+        newBrands[brandIndex].variants[varIndex][field] = value;
+        const firstVariant = newBrands[0].variants[0];
+        setEditData({ ...editData, brands: newBrands, price: Number(firstVariant.price), stock: Number(firstVariant.stock) });
+    };
+
+    const handleEditBrandNameChange = (brandIndex, value) => {
+        const newBrands = [...editData.brands];
+        newBrands[brandIndex].name = value;
+        setEditData({ ...editData, brands: newBrands });
+    };
+
     const handleSave = async () => {
         try {
-            await updateProduct(editId, editData);
+            const firstBrand = editData.brands[0];
+            const firstVariant = firstBrand.variants[0];
+            const saveData = {
+                ...editData,
+                price: Number(firstVariant.price),
+                stock: Number(firstVariant.stock),
+                brand: firstBrand.name,
+                quantity: firstVariant.quantity
+            };
+            await updateProduct(editId, saveData);
             toast.success('Product updated!');
             setEditId(null);
         } catch { toast.error('Update failed'); }
@@ -146,8 +177,6 @@ const ProductsManagement = ({ products }) => {
                             <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-100">
                                 <th className="p-3 font-medium text-xs">Product Name</th>
                                 <th className="p-3 font-medium text-xs">Category</th>
-                                <th className="p-3 font-medium text-xs">Price</th>
-                                <th className="p-3 font-medium text-xs">Stock</th>
                                 <th className="p-3 font-medium text-xs">Actions</th>
                             </tr>
                         </thead>
@@ -162,33 +191,12 @@ const ProductsManagement = ({ products }) => {
                                         </div>
                                     </td>
                                     <td className="p-3 text-gray-600 text-xs">{p.category}</td>
-                                    <td className="p-3 text-xs">
-                                        {editId === p.id ? (
-                                            <input type="number" value={editData.price} onChange={e => setEditData({ ...editData, price: e.target.value })}
-                                                className="w-16 px-2 py-1 border rounded text-xs" />
-                                        ) : <span className="font-semibold">₹{p.price}</span>}
-                                    </td>
-                                    <td className="p-3 text-xs">
-                                        {editId === p.id ? (
-                                            <input type="number" value={editData.stock} onChange={e => setEditData({ ...editData, stock: e.target.value })}
-                                                className="w-16 px-2 py-1 border rounded text-xs" />
-                                        ) : <span className={p.stock <= 0 ? 'text-red-600 font-bold' : p.stock <= (p.lowStockThreshold || 10) ? 'text-orange-600 font-bold' : ''}>{p.stock}</span>}
-                                    </td>
                                     <td className="p-3">
                                         <div className="flex gap-1.5">
-                                            {editId === p.id ? (
-                                                <>
-                                                    <button onClick={handleSave} className="px-2.5 py-1 bg-green-500 text-white text-[10px] font-bold rounded hover:bg-green-600">Save</button>
-                                                    <button onClick={() => setEditId(null)} className="px-2.5 py-1 bg-gray-200 text-gray-700 text-[10px] font-bold rounded hover:bg-gray-300">Cancel</button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <button onClick={() => handleEdit(p)} className="px-2.5 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded hover:bg-blue-200">Edit</button>
-                                                    <button onClick={() => handleDelete(p.id)} className={`px-2.5 py-1 text-[10px] font-bold rounded ${deleting === p.id ? 'bg-red-500 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}>
-                                                        {deleting === p.id ? 'Confirm?' : 'Delete'}
-                                                    </button>
-                                                </>
-                                            )}
+                                            <button onClick={() => handleEdit(p)} className="px-2.5 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded hover:bg-blue-200">Edit</button>
+                                            <button onClick={() => handleDelete(p.id)} className={`px-2.5 py-1 text-[10px] font-bold rounded ${deleting === p.id ? 'bg-red-500 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}>
+                                                {deleting === p.id ? 'Confirm?' : 'Delete'}
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -197,6 +205,61 @@ const ProductsManagement = ({ products }) => {
                     </table>
                 </div>
             </div>
+
+            {/* Edit Product Modal */}
+            {editId && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl">
+                        <div className="bg-gray-50 p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 z-10">
+                            <h3 className="font-bold text-gray-800 text-sm flex items-center gap-2">
+                                <FiEdit2 className="text-blue-600" /> Edit Product
+                            </h3>
+                            <button onClick={() => setEditId(null)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">&times;</button>
+                        </div>
+                        <div className="p-5 space-y-5">
+                            {/* Product Name */}
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 mb-1 block">Product Name</label>
+                                <input type="text" value={editData.name || ''} onChange={e => setEditData({ ...editData, name: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:outline-none" />
+                            </div>
+
+                            {/* Brands & Variants */}
+                            {editData.brands?.map((brand, bIdx) => (
+                                <div key={bIdx} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                    <label className="text-xs font-bold text-gray-500 mb-1 block">Brand Name</label>
+                                    <input type="text" value={brand.name} onChange={e => handleEditBrandNameChange(bIdx, e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3 focus:ring-2 focus:ring-green-500 focus:outline-none" placeholder="Brand name" />
+
+                                    {brand.variants.map((v, vIdx) => (
+                                        <div key={vIdx} className="flex gap-2 mb-2">
+                                            <div className="flex-1">
+                                                <label className="text-[10px] font-bold text-gray-400 block mb-0.5">Quantity</label>
+                                                <input type="text" value={v.quantity} onChange={e => handleEditVariantChange(bIdx, vIdx, 'quantity', e.target.value)}
+                                                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-green-500 focus:outline-none" placeholder="e.g. 500g" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <label className="text-[10px] font-bold text-gray-400 block mb-0.5">Price (₹)</label>
+                                                <input type="number" value={v.price} onChange={e => handleEditVariantChange(bIdx, vIdx, 'price', e.target.value)}
+                                                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-green-500 focus:outline-none" placeholder="Price" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <label className="text-[10px] font-bold text-gray-400 block mb-0.5">Stock</label>
+                                                <input type="number" value={v.stock} onChange={e => handleEditVariantChange(bIdx, vIdx, 'stock', e.target.value)}
+                                                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-green-500 focus:outline-none" placeholder="Stock" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="p-4 border-t border-gray-100 flex gap-2 justify-end sticky bottom-0 bg-white">
+                            <button onClick={() => setEditId(null)} className="px-4 py-2 bg-gray-100 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-200">Cancel</button>
+                            <button onClick={handleSave} className="px-4 py-2 bg-[#2e7d32] text-white text-xs font-bold rounded-lg hover:bg-[#1b5e20]">Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -370,7 +433,7 @@ const AddProduct = () => {
                                                 {/* Variants Grid */}
                                                 <div className="space-y-4">
                                                     {brand.variants.map((variant, varIdx) => (
-                                                        <div key={varIdx} className="grid grid-cols-2 gap-4 items-end relative group/variant">
+                                                        <div key={varIdx} className="grid grid-cols-3 gap-4 items-end relative group/variant">
                                                             <div className="space-y-1.5">
                                                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Quantity</label>
                                                                 <input
@@ -383,17 +446,27 @@ const AddProduct = () => {
                                                             </div>
                                                             <div className="space-y-1.5">
                                                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Price (₹)</label>
+                                                                <div className="relative">
+                                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">₹</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={variant.price}
+                                                                        onChange={e => handleVariantChange(brandIdx, varIdx, 'price', e.target.value)}
+                                                                        className="w-full pl-6 pr-3 py-2 bg-[#f8fafb] border-none rounded-lg text-xs font-bold focus:ring-1 focus:ring-blue-500 outline-none"
+                                                                        placeholder="0"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Stock</label>
                                                                 <div className="flex gap-2">
-                                                                    <div className="relative flex-1">
-                                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">₹</span>
-                                                                        <input
-                                                                            type="number"
-                                                                            value={variant.price}
-                                                                            onChange={e => handleVariantChange(brandIdx, varIdx, 'price', e.target.value)}
-                                                                            className="w-full pl-6 pr-3 py-2 bg-[#f8fafb] border-none rounded-lg text-xs font-bold focus:ring-1 focus:ring-blue-500 outline-none"
-                                                                            placeholder="0"
-                                                                        />
-                                                                    </div>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={variant.stock}
+                                                                        onChange={e => handleVariantChange(brandIdx, varIdx, 'stock', e.target.value)}
+                                                                        className="w-full px-3 py-2 bg-[#f8fafb] border-none rounded-lg text-xs font-bold focus:ring-1 focus:ring-blue-500 outline-none"
+                                                                        placeholder="0"
+                                                                    />
                                                                     {brand.variants.length > 1 && (
                                                                         <button
                                                                             type="button"
@@ -537,15 +610,18 @@ const OrdersManagement = ({ orders }) => {
                                             <td className="p-4">
                                                 <div className="flex flex-col">
                                                     <span className="font-mono text-xs font-bold text-gray-900">#{order.id.slice(-8).toUpperCase()}</span>
-                                                    <span className="text-[10px] text-gray-400 mt-0.5">{order.createdAt?.toDate?.()?.toLocaleDateString() || 'Recently'}</span>
+                                                    <span className="text-[10px] text-gray-400 mt-0.5">{order.createdAt?.toDate?.()?.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-') || 'Recently'}</span>
                                                 </div>
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600">
-                                                        {order.userId?.slice(0, 2).toUpperCase() || 'CU'}
+                                                        {order.customerInfo?.name?.slice(0, 2).toUpperCase() || order.userId?.slice(0, 2).toUpperCase() || 'CU'}
                                                     </div>
-                                                    <span className="text-xs text-gray-600 font-medium">{order.userId?.slice(0, 10) || 'Customer'}</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs text-gray-800 font-semibold">{order.customerInfo?.name || 'Customer'}</span>
+                                                        <span className="text-[10px] text-gray-400 font-mono">{order.customerInfo?.customerId || order.userId?.slice(0, 10)}</span>
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="p-4 text-right">
@@ -665,6 +741,7 @@ const OrdersManagement = ({ orders }) => {
 // ---- Main Admin Dashboard ----
 const AdminDashboard = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [products, setProducts] = useState([]);
     const [orders, setOrders] = useState([]);
@@ -694,12 +771,6 @@ const AdminDashboard = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
-                            <FiUser className="text-gray-500 text-sm" />
-                        </button>
-                        <button className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
-                            <FiSettings className="text-gray-500 text-sm" />
-                        </button>
                         <div className="flex items-center gap-2">
                             <div className="w-8 h-8 bg-[#2e7d32] rounded-lg flex items-center justify-center text-white text-xs font-bold">
                                 {user?.displayName?.[0]?.toUpperCase() || 'A'}

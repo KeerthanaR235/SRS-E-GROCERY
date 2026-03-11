@@ -181,6 +181,9 @@ const ProductDetailModal = ({ product, isOpen, onClose }) => {
                                             }`}
                                         >
                                             {variant.quantity} - ₹{Number(variant.price)}
+                                            <span className={`ml-1 text-[10px] ${selectedVariantIndex === idx ? 'text-green-200' : Number(variant.stock) <= 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                                                ({Number(variant.stock) <= 0 ? 'Out of stock' : `${variant.stock} left`})
+                                            </span>
                                         </button>
                                     ))}
                                 </div>

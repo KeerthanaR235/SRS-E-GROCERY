@@ -40,12 +40,14 @@ export const createOrderAndDeductStock = async (userId, cartItems, paymentId, pa
     const orderData = {
         userId,
         items: cartItems.map(item => ({
-            productId: item.id,
+            productId: item.originalId || item.id,
             name: item.name,
             price: item.price,
             discount: item.discount || 0,
             quantity: item.quantity,
-            imageURL: item.imageURL || ''
+            imageURL: item.imageURL || '',
+            selectedBrand: item.selectedBrand || '',
+            selectedQuantity: item.selectedQuantity || ''
         })),
         totalAmount,
         paymentId: paymentId || '',
@@ -56,6 +58,7 @@ export const createOrderAndDeductStock = async (userId, cartItems, paymentId, pa
             name: customerInfo.fullName || '',
             phone: customerInfo.phone || '',
             email: customerInfo.email || '',
+            customerId: customerInfo.customerId || '',
             address: `${customerInfo.street}, ${customerInfo.city}, ${customerInfo.state} - ${customerInfo.pincode}`
         }
     };

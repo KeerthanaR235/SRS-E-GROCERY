@@ -20,7 +20,7 @@ const statusColors = {
 const statusIcons = { placed: FiClock, packed: FiPackage, delivered: FiCheckCircle, cancelled: FiXCircle };
 
 const Orders = () => {
-    const { user } = useAuth();
+    const { user, customerId } = useAuth();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [cancellingId, setCancellingId] = useState(null);
@@ -44,12 +44,16 @@ const Orders = () => {
 
             // Return stock back to inventory
             if (order.items && order.items.length > 0) {
-                await restockItems(order.items);
+                try {
+                    await restockItems(order.items);
+                } catch (stockErr) {
+                    console.error('Restock failed:', stockErr);
+                }
             }
 
             toast.success('Order cancelled successfully');
         } catch (error) {
-            console.error(error);
+            console.error('Cancel order error:', error);
             toast.error('Failed to cancel order');
         } finally {
             setCancellingId(null);
@@ -108,7 +112,7 @@ const Orders = () => {
         doc.setDrawColor(220, 220, 220);
         doc.line(15, 105, 195, 105);
         doc.setFontSize(9);
-        doc.text(`Customer ID : ${user.uid.slice(0, 12).toUpperCase()} | Order ID: ${order.id.slice(0, 12).toUpperCase()}`, 105, 112, { align: 'center' });
+        doc.text(`Customer ID : ${customerId || user.uid.slice(0, 12).toUpperCase()} | Order ID: ${order.id.slice(0, 12).toUpperCase()}`, 105, 112, { align: 'center' });
         doc.line(15, 118, 195, 118);
 
         // 5. Items Table

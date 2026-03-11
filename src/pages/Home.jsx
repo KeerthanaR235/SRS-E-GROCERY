@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import Hero from '../components/Hero';
 import CategoryBar from '../components/CategoryBar';
-import OffersSection from '../components/OffersSection';
 import ProductCard from '../components/ProductCard';
 import ProductDetailModal from '../components/ProductDetailModal';
 import { subscribeToProducts } from '../services/productService';
@@ -78,8 +77,6 @@ const Home = ({ searchQuery = '' }) => {
                     )}
                 </div>
             </section>
-
-            <OffersSection />
 
             {/* Product Detail Modal */}
             <ProductDetailModal

@@ -106,7 +106,17 @@ export const deductStock = async (items) => {
     const batch = writeBatch(db);
 
     for (const item of items) {
-        const productRef = doc(db, PRODUCTS_COLLECTION, item.productId || item.id);
+        // Handle composite IDs like "abc123_Brand_Qty" — extract original ID
+        let productId = item.originalId || item.productId || item.id;
+        if (productId && productId.includes('_')) {
+            const parts = productId.split('_');
+            const testRef = doc(db, PRODUCTS_COLLECTION, parts[0]);
+            const testSnap = await getDoc(testRef);
+            if (testSnap.exists()) {
+                productId = parts[0];
+            }
+        }
+        const productRef = doc(db, PRODUCTS_COLLECTION, productId);
         const productSnap = await getDoc(productRef);
 
         if (productSnap.exists()) {
@@ -116,15 +126,35 @@ export const deductStock = async (items) => {
 
             let updateData = { stock: newStock };
 
-            // If using the multi-brand/variant structure, update the nested stock as well
+            // Update the specific brand+variant stock
             if (data.brands && data.brands.length > 0) {
-                const newBrands = [...data.brands];
-                // Update first brand's first variant for consistency if we don't have specific variant ID
-                if (newBrands[0].variants && newBrands[0].variants.length > 0) {
-                    const v = newBrands[0].variants[0];
-                    newBrands[0].variants[0].stock = Math.max(0, Number(v.stock || 0) - item.quantity);
-                    updateData.brands = newBrands;
+                const newBrands = data.brands.map(b => ({
+                    ...b,
+                    variants: b.variants.map(v => ({ ...v }))
+                }));
+                const brandName = item.selectedBrand || '';
+                const variantQty = item.selectedQuantity || '';
+                let matched = false;
+
+                for (const brand of newBrands) {
+                    if (brand.name === brandName) {
+                        for (const variant of brand.variants) {
+                            if (variant.quantity === variantQty) {
+                                variant.stock = Math.max(0, Number(variant.stock || 0) - item.quantity);
+                                matched = true;
+                                break;
+                            }
+                        }
+                        break;
+                    }
                 }
+
+                // Fallback: deduct from first variant if no match
+                if (!matched && newBrands[0].variants && newBrands[0].variants.length > 0) {
+                    newBrands[0].variants[0].stock = Math.max(0, Number(newBrands[0].variants[0].stock || 0) - item.quantity);
+                }
+
+                updateData.brands = newBrands;
             }
 
             batch.update(productRef, updateData);
@@ -139,7 +169,18 @@ export const restockItems = async (items) => {
     const batch = writeBatch(db);
 
     for (const item of items) {
-        const productRef = doc(db, PRODUCTS_COLLECTION, item.productId || item.id);
+        // Handle composite IDs like "abc123_Brand_Qty" — extract original ID
+        let productId = item.originalId || item.productId || item.id;
+        if (productId && productId.includes('_')) {
+            const parts = productId.split('_');
+            // Check if first part is the real doc ID (try it first)
+            const testRef = doc(db, PRODUCTS_COLLECTION, parts[0]);
+            const testSnap = await getDoc(testRef);
+            if (testSnap.exists()) {
+                productId = parts[0];
+            }
+        }
+        const productRef = doc(db, PRODUCTS_COLLECTION, productId);
         const productSnap = await getDoc(productRef);
 
         if (productSnap.exists()) {
@@ -149,14 +190,35 @@ export const restockItems = async (items) => {
 
             let updateData = { stock: newStock };
 
-            // Update nested stock if brand structure exists
+            // Restock the specific brand+variant
             if (data.brands && data.brands.length > 0) {
-                const newBrands = [...data.brands];
-                if (newBrands[0].variants && newBrands[0].variants.length > 0) {
-                    const v = newBrands[0].variants[0];
-                    newBrands[0].variants[0].stock = Number(v.stock || 0) + item.quantity;
-                    updateData.brands = newBrands;
+                const newBrands = data.brands.map(b => ({
+                    ...b,
+                    variants: b.variants.map(v => ({ ...v }))
+                }));
+                const brandName = item.selectedBrand || '';
+                const variantQty = item.selectedQuantity || '';
+                let matched = false;
+
+                for (const brand of newBrands) {
+                    if (brand.name === brandName) {
+                        for (const variant of brand.variants) {
+                            if (variant.quantity === variantQty) {
+                                variant.stock = Number(variant.stock || 0) + item.quantity;
+                                matched = true;
+                                break;
+                            }
+                        }
+                        break;
+                    }
                 }
+
+                // Fallback: restock first variant if no match
+                if (!matched && newBrands[0].variants && newBrands[0].variants.length > 0) {
+                    newBrands[0].variants[0].stock = Number(newBrands[0].variants[0].stock || 0) + item.quantity;
+                }
+
+                updateData.brands = newBrands;
             }
 
             batch.update(productRef, updateData);
