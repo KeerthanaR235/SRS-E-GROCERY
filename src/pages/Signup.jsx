@@ -66,12 +66,12 @@ const Signup = () => {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <Link to="/" className="inline-flex items-center gap-2 mb-6">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-green-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
-                            <span className="text-white text-2xl">🛒</span>
+                        <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-lg shadow-green-200">
+                            <img src="/logo.png" alt="SRS Logo" className="w-full h-full object-cover" />
                         </div>
                     </Link>
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-                    <p className="text-gray-500">Join E-Grocery for the freshest deals</p>
+                    <p className="text-gray-500">Join Sri Ranga Supermarket for the freshest deals</p>
                 </div>
 
                 {/* Signup Card */}
@@ -112,7 +112,7 @@ const Signup = () => {
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     placeholder="John Doe"
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent focus:bg-white transition-all"
                                     required
                                 />
                             </div>
@@ -127,7 +127,7 @@ const Signup = () => {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="you@example.com"
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent focus:bg-white transition-all"
                                     required
                                 />
                             </div>
@@ -142,7 +142,7 @@ const Signup = () => {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Min. 6 characters"
-                                    className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
+                                    className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent focus:bg-white transition-all"
                                     required
                                 />
                                 <button
@@ -164,7 +164,7 @@ const Signup = () => {
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     placeholder="Re-enter password"
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent focus:bg-white transition-all"
                                     required
                                 />
                             </div>
@@ -173,7 +173,7 @@ const Signup = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg shadow-green-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full py-3 bg-[#2e7d32] text-white font-semibold rounded-xl hover:bg-[#1b5e20] transition-all duration-200 shadow-lg shadow-green-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? (
                                 <span className="flex items-center justify-center gap-2">
@@ -190,7 +190,7 @@ const Signup = () => {
                     {/* Login Link */}
                     <p className="text-center text-sm text-gray-500 mt-6">
                         Already have an account?{' '}
-                        <Link to="/login" className="text-blue-600 font-semibold hover:text-blue-700 transition-colors">
+                        <Link to="/login" className="text-[#2e7d32] font-semibold hover:text-[#1b5e20] transition-colors">
                             Sign In
                         </Link>
                     </p>

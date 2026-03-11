@@ -1,33 +1,38 @@
-// Admin Sidebar Component - Navigation for admin dashboard
-import { Link, useLocation } from 'react-router-dom';
+// Admin Sidebar Component - Green themed matching UI design
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
     FiHome,
     FiPackage,
     FiShoppingBag,
-    FiAlertTriangle,
-    FiBarChart2,
-    FiArrowLeft,
-    FiPlus,
-    FiSettings,
+    FiLogOut,
     FiX
 } from 'react-icons/fi';
 
 const AdminSidebar = ({ isOpen, onClose }) => {
     const location = useLocation();
+    const navigate = useNavigate();
+    const { logout } = useAuth();
 
     const menuItems = [
         { path: '/admin', label: 'Dashboard', icon: FiHome, exact: true },
-        { path: '/admin/products', label: 'Products', icon: FiPackage },
-        { path: '/admin/add-product', label: 'Add Product', icon: FiPlus },
+        { path: '/admin/products', label: 'Manage Products', icon: FiPackage },
         { path: '/admin/orders', label: 'Orders', icon: FiShoppingBag },
-        { path: '/admin/low-stock', label: 'Low Stock', icon: FiAlertTriangle },
-        { path: '/admin/analytics', label: 'Analytics', icon: FiBarChart2 },
-        { path: '/admin/maintenance', label: 'Maintenance', icon: FiSettings },
     ];
 
     const isActive = (path, exact) => {
         if (exact) return location.pathname === path;
         return location.pathname.startsWith(path);
+    };
+
+    const handleLogout = async () => {
+        try {
+            // Clear hardcoded admin session
+            localStorage.removeItem('adminLoggedIn');
+            localStorage.removeItem('adminEmail');
+            await logout();
+        } catch (e) { console.error(e); }
+        navigate('/login');
     };
 
     return (
@@ -39,31 +44,31 @@ const AdminSidebar = ({ isOpen, onClose }) => {
 
             {/* Sidebar */}
             <aside
-                className={`fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-100 z-50 transform transition-transform duration-300 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
-                    } lg:sticky lg:top-0 lg:h-screen`}
+                className={`fixed top-0 left-0 h-full w-60 bg-[#1b5e20] text-gray-300 z-50 transform transition-transform duration-300 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+                    } lg:sticky lg:top-0 lg:h-screen shadow-2xl`}
             >
                 <div className="flex flex-col h-full">
+                    {/* Close button for mobile */}
+                    <button
+                        onClick={onClose}
+                        className="lg:hidden absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                    >
+                        <FiX />
+                    </button>
+
                     {/* Header */}
-                    <div className="p-5 border-b border-gray-100">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                                <div className="w-9 h-9 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                                    <span className="text-white text-sm font-bold">A</span>
-                                </div>
-                                <div>
-                                    <p className="font-bold text-gray-800 text-sm">Admin Panel</p>
-                                    <p className="text-xs text-gray-400">E-Grocery</p>
-                                </div>
+                    <div className="p-5 border-b border-green-800">
+                        <div className="flex items-center gap-3">
+                            <img src="/logo.png" alt="SRS Logo" className="w-10 h-10 rounded-lg object-cover" />
+                            <div>
+                                <p className="font-bold text-white text-sm leading-tight">Sri Ranga</p>
+                                <p className="text-[10px] text-green-300 tracking-wide">Supermarket</p>
                             </div>
-                            <button onClick={onClose} className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg">
-                                <FiX className="text-gray-500" />
-                            </button>
                         </div>
                     </div>
 
                     {/* Navigation */}
-                    <nav className="flex-1 p-3 overflow-y-auto">
-                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">Menu</p>
+                    <nav className="flex-1 p-3 mt-1">
                         <ul className="space-y-1">
                             {menuItems.map((item) => {
                                 const Icon = item.icon;
@@ -73,17 +78,14 @@ const AdminSidebar = ({ isOpen, onClose }) => {
                                         <Link
                                             to={item.path}
                                             onClick={onClose}
-                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-                        ${active
-                                                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm'
-                                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200
+                                                ${active
+                                                    ? 'bg-white/20 text-white shadow-md'
+                                                    : 'hover:bg-white/10 hover:text-white text-green-200'
                                                 }`}
                                         >
-                                            <Icon className={`text-lg ${active ? 'text-blue-600' : 'text-gray-400'}`} />
+                                            <Icon className={`text-lg ${active ? 'text-white' : 'text-green-300'}`} />
                                             {item.label}
-                                            {item.label === 'Low Stock' && (
-                                                <span className="ml-auto w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
-                                            )}
                                         </Link>
                                     </li>
                                 );
@@ -91,15 +93,19 @@ const AdminSidebar = ({ isOpen, onClose }) => {
                         </ul>
                     </nav>
 
-                    {/* Back to Store */}
-                    <div className="p-3 border-t border-gray-100">
-                        <Link
-                            to="/"
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
-                        >
-                            <FiArrowLeft className="text-gray-400" />
+                    {/* Footer */}
+                    <div className="p-3 border-t border-green-800">
+                        <Link to="/" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-green-200 hover:bg-white/10 hover:text-white transition-all">
+                            <FiHome className="text-lg" />
                             Back to Store
                         </Link>
+                        <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all"
+                        >
+                            <FiLogOut className="text-lg" />
+                            Logout
+                        </button>
                     </div>
                 </div>
             </aside>

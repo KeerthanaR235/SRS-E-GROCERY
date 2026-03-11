@@ -63,6 +63,8 @@ export const addProduct = async (productData, imageFile) => {
     const docRef = await addDoc(collection(db, PRODUCTS_COLLECTION), {
         ...productData,
         imageURL: imageURL || productData.imageURL || '',
+        brand: productData.brand || '',
+        quantity: productData.quantity || '',
         price: Number(productData.price),
         discount: Number(productData.discount || 0),
         stock: Number(productData.stock),
@@ -108,13 +110,71 @@ export const deductStock = async (items) => {
         const productSnap = await getDoc(productRef);
 
         if (productSnap.exists()) {
-            const currentStock = productSnap.data().stock;
+            const data = productSnap.data();
+            const currentStock = Number(data.stock || 0);
             const newStock = Math.max(0, currentStock - item.quantity);
-            batch.update(productRef, { stock: newStock });
+
+            let updateData = { stock: newStock };
+
+            // If using the multi-brand/variant structure, update the nested stock as well
+            if (data.brands && data.brands.length > 0) {
+                const newBrands = [...data.brands];
+                // Update first brand's first variant for consistency if we don't have specific variant ID
+                if (newBrands[0].variants && newBrands[0].variants.length > 0) {
+                    const v = newBrands[0].variants[0];
+                    newBrands[0].variants[0].stock = Math.max(0, Number(v.stock || 0) - item.quantity);
+                    updateData.brands = newBrands;
+                }
+            }
+
+            batch.update(productRef, updateData);
         }
     }
 
     await batch.commit();
+};
+
+// Restock items after cancellation (batch operation)
+export const restockItems = async (items) => {
+    const batch = writeBatch(db);
+
+    for (const item of items) {
+        const productRef = doc(db, PRODUCTS_COLLECTION, item.productId || item.id);
+        const productSnap = await getDoc(productRef);
+
+        if (productSnap.exists()) {
+            const data = productSnap.data();
+            const currentStock = Number(data.stock || 0);
+            const newStock = currentStock + item.quantity;
+
+            let updateData = { stock: newStock };
+
+            // Update nested stock if brand structure exists
+            if (data.brands && data.brands.length > 0) {
+                const newBrands = [...data.brands];
+                if (newBrands[0].variants && newBrands[0].variants.length > 0) {
+                    const v = newBrands[0].variants[0];
+                    newBrands[0].variants[0].stock = Number(v.stock || 0) + item.quantity;
+                    updateData.brands = newBrands;
+                }
+            }
+
+            batch.update(productRef, updateData);
+        }
+    }
+
+    await batch.commit();
+};
+
+// Delete ALL products from Firestore
+export const deleteAllProducts = async () => {
+    const snapshot = await getDocs(collection(db, PRODUCTS_COLLECTION));
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(docSnap => {
+        batch.delete(doc(db, PRODUCTS_COLLECTION, docSnap.id));
+    });
+    await batch.commit();
+    return snapshot.size; // returns how many were deleted
 };
 
 // Get low stock products

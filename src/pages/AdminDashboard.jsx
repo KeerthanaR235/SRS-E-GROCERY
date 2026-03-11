@@ -1,4 +1,4 @@
-// Admin Dashboard - Main admin page with stats, low stock alerts, orders, and analytics
+// Admin Dashboard - Green themed admin page matching UI design
 import { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import AdminSidebar from '../components/AdminSidebar';
@@ -6,121 +6,100 @@ import { useAuth } from '../context/AuthContext';
 import { subscribeToProducts, addProduct, updateProduct, deleteProduct } from '../services/productService';
 import { subscribeToAllOrders, updateOrderStatus } from '../services/orderService';
 import toast from 'react-hot-toast';
-import { FiMenu, FiPackage, FiShoppingBag, FiAlertTriangle, FiDollarSign, FiPlus, FiEdit2, FiTrash2, FiTrendingUp } from 'react-icons/fi';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { FiMenu, FiPackage, FiShoppingBag, FiDollarSign, FiPlus, FiEdit2, FiTrash2, FiTrendingUp, FiSearch, FiUser, FiSettings } from 'react-icons/fi';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 // ---- Dashboard Overview ----
 const DashboardOverview = ({ products, orders }) => {
     const totalRevenue = orders.filter(o => o.paymentStatus === 'success').reduce((s, o) => s + (o.totalAmount || 0), 0);
-    const totalStockValue = products.reduce((s, p) => s + (p.price * p.stock), 0);
-    const lowStockCount = products.filter(p => p.stock <= (p.lowStockThreshold || 10)).length;
-    const outOfStock = products.filter(p => p.stock <= 0).length;
+    const pendingOrders = orders.filter(o => o.orderStatus === 'placed').length;
 
     const stats = [
-        { label: 'Total Products', value: products.length, icon: FiPackage, color: 'from-blue-500 to-blue-600', bg: 'bg-blue-50' },
-        { label: 'Total Orders', value: orders.length, icon: FiShoppingBag, color: 'from-green-500 to-green-600', bg: 'bg-green-50' },
-        { label: 'Revenue', value: `₹${totalRevenue.toFixed(0)}`, icon: FiDollarSign, color: 'from-purple-500 to-purple-600', bg: 'bg-purple-50' },
-        { label: 'Low Stock Items', value: lowStockCount, icon: FiAlertTriangle, color: 'from-orange-500 to-orange-600', bg: 'bg-orange-50' },
+        { label: 'Total Products', value: products.length, color: '#1565c0', bg: '#e3f2fd', icon: '📦' },
+        { label: 'Pending Orders', value: pendingOrders, color: '#e65100', bg: '#fff3e0', icon: '⏳' },
+        { label: 'Total Sales', value: `$${(totalRevenue / 75).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`, color: '#c62828', bg: '#ffebee', icon: '💰' },
     ];
 
-    // Category distribution for pie chart
-    const categoryData = products.reduce((acc, p) => {
-        const cat = p.category || 'Other';
-        acc[cat] = (acc[cat] || 0) + 1;
-        return acc;
-    }, {});
-    const pieData = Object.entries(categoryData).map(([name, value]) => ({ name, value }));
-    const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
-
-    // Monthly revenue (simplified)
-    const monthlyData = [
-        { month: 'Jan', revenue: Math.round(totalRevenue * 0.6) },
-        { month: 'Feb', revenue: Math.round(totalRevenue * 0.8) },
-        { month: 'Mar', revenue: Math.round(totalRevenue * 1.0) },
+    // Order overview chart data
+    const orderData = [
+        { name: 'Week 1', Pending: Math.max(1, Math.floor(pendingOrders * 0.3)), Packed: Math.max(1, Math.floor(orders.length * 0.2)), Delivered: Math.max(1, Math.floor(orders.length * 0.5)) },
+        { name: 'Week 2', Pending: Math.max(2, Math.floor(pendingOrders * 0.5)), Packed: Math.max(2, Math.floor(orders.length * 0.3)), Delivered: Math.max(2, Math.floor(orders.length * 0.6)) },
+        { name: 'Week 3', Pending: Math.max(1, Math.floor(pendingOrders * 0.7)), Packed: Math.max(3, Math.floor(orders.length * 0.4)), Delivered: Math.max(4, Math.floor(orders.length * 0.7)) },
+        { name: 'Week 4', Pending: Math.max(3, pendingOrders), Packed: Math.max(2, Math.floor(orders.length * 0.3)), Delivered: Math.max(5, Math.floor(orders.length * 0.8)) },
     ];
 
     return (
         <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Dashboard Overview</h2>
-            {/* Stats Grid */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                {stats.map((s, i) => {
-                    const Icon = s.icon;
-                    return (
-                        <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all">
-                            <div className="flex items-center justify-between mb-3">
-                                <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center`}>
-                                    <Icon className="text-lg" />
-                                </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-1">Welcome, Admin!</h2>
+            <p className="text-sm text-gray-500 mb-5">Here's what's happening with your store</p>
+
+            {/* Stats Cards */}
+            <div className="grid sm:grid-cols-3 gap-4 mb-6">
+                {stats.map((s, i) => (
+                    <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-all">
+                        <p className="text-xs text-gray-500 mb-1">{s.label}</p>
+                        <div className="flex items-center justify-between">
+                            <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
+                            <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl" style={{ backgroundColor: s.bg }}>
+                                {s.icon}
                             </div>
-                            <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-                            <p className="text-sm text-gray-500">{s.label}</p>
                         </div>
-                    );
-                })}
+                    </div>
+                ))}
             </div>
 
-            {/* Charts */}
-            <div className="grid lg:grid-cols-2 gap-6 mb-8">
-                <div className="bg-white rounded-2xl border p-5">
-                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><FiTrendingUp className="text-blue-600" /> Revenue Overview</h3>
-                    <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={monthlyData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis dataKey="month" />
-                            <YAxis />
-                            <Tooltip />
-                            <Bar dataKey="revenue" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-                <div className="bg-white rounded-2xl border p-5">
-                    <h3 className="font-bold text-gray-800 mb-4">Products by Category</h3>
-                    <ResponsiveContainer width="100%" height={250}>
-                        <PieChart>
-                            <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                                {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                            </Pie>
-                            <Tooltip />
-                        </PieChart>
-                    </ResponsiveContainer>
-                </div>
+            {/* Order Overview Chart */}
+            <div className="bg-white rounded-xl border border-gray-100 p-5 mb-6">
+                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <FiTrendingUp className="text-[#2e7d32]" /> Order Overview
+                </h3>
+                <ResponsiveContainer width="100%" height={250}>
+                    <LineChart data={orderData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="Pending" stroke="#ff9800" strokeWidth={2} dot={{ fill: '#ff9800', r: 4 }} />
+                        <Line type="monotone" dataKey="Packed" stroke="#2196f3" strokeWidth={2} dot={{ fill: '#2196f3', r: 4 }} />
+                        <Line type="monotone" dataKey="Delivered" stroke="#4caf50" strokeWidth={2} dot={{ fill: '#4caf50', r: 4 }} />
+                    </LineChart>
+                </ResponsiveContainer>
             </div>
 
             {/* Recent Orders */}
-            <div className="bg-white rounded-2xl border p-5">
+            <div className="bg-white rounded-xl border border-gray-100 p-5">
                 <h3 className="font-bold text-gray-800 mb-4">Recent Orders</h3>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                        <thead><tr className="text-left text-gray-500 border-b">
-                            <th className="pb-3 font-medium">Order ID</th><th className="pb-3 font-medium">Items</th>
-                            <th className="pb-3 font-medium">Amount</th><th className="pb-3 font-medium">Status</th>
-                        </tr></thead>
+                        <thead>
+                            <tr className="text-left text-gray-500 border-b border-gray-100">
+                                <th className="pb-3 font-medium text-xs">Order ID</th>
+                                <th className="pb-3 font-medium text-xs">Customer</th>
+                                <th className="pb-3 font-medium text-xs">Amount</th>
+                                <th className="pb-3 font-medium text-xs">Status</th>
+                            </tr>
+                        </thead>
                         <tbody>
                             {orders.slice(0, 5).map(order => (
                                 <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50">
-                                    <td className="py-3 font-mono text-xs">{order.id.slice(0, 10)}...</td>
-                                    <td className="py-3">{order.items?.length || 0} items</td>
-                                    <td className="py-3 font-semibold">₹{order.totalAmount?.toFixed(0) || 0}</td>
+                                    <td className="py-3 font-mono text-xs text-gray-600">{order.id.slice(0, 10)}...</td>
+                                    <td className="py-3 text-xs text-gray-600">{order.userId?.slice(0, 8) || 'Customer'}</td>
+                                    <td className="py-3 font-semibold text-xs">₹{order.totalAmount?.toFixed(0) || 0}</td>
                                     <td className="py-3">
-                                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${order.orderStatus === 'delivered' ? 'bg-green-100 text-green-700' :
-                                            order.orderStatus === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${order.orderStatus === 'delivered' ? 'bg-green-100 text-green-700' :
+                                            order.orderStatus === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                                order.orderStatus === 'shipped' ? 'bg-blue-100 text-blue-700' :
+                                                    'bg-orange-100 text-orange-700'
                                             }`}>{order.orderStatus}</span>
                                     </td>
                                 </tr>
                             ))}
+                            {orders.length === 0 && (
+                                <tr><td colSpan="4" className="py-6 text-center text-gray-400 text-xs">No orders yet</td></tr>
+                            )}
                         </tbody>
                     </table>
-                </div>
-            </div>
-
-            {/* Inventory Info */}
-            <div className="mt-6 bg-white rounded-2xl border p-5">
-                <h3 className="font-bold text-gray-800 mb-2">Inventory Summary</h3>
-                <div className="grid sm:grid-cols-3 gap-4 mt-4">
-                    <div className="bg-blue-50 rounded-xl p-4"><p className="text-sm text-blue-600">Total Stock Value</p><p className="text-xl font-bold text-blue-800">₹{totalStockValue.toFixed(0)}</p></div>
-                    <div className="bg-orange-50 rounded-xl p-4"><p className="text-sm text-orange-600">Low Stock Items</p><p className="text-xl font-bold text-orange-800">{lowStockCount}</p></div>
-                    <div className="bg-red-50 rounded-xl p-4"><p className="text-sm text-red-600">Out of Stock</p><p className="text-xl font-bold text-red-800">{outOfStock}</p></div>
                 </div>
             </div>
         </div>
@@ -129,6 +108,7 @@ const DashboardOverview = ({ products, orders }) => {
 
 // ---- Products Management ----
 const ProductsManagement = ({ products }) => {
+    const navigate = useNavigate();
     const [editId, setEditId] = useState(null);
     const [editData, setEditData] = useState({});
     const [deleting, setDeleting] = useState(null);
@@ -150,54 +130,63 @@ const ProductsManagement = ({ products }) => {
 
     return (
         <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Manage Products</h2>
-            <div className="bg-white rounded-2xl border overflow-hidden">
+            <div className="flex items-center justify-between mb-5">
+                <h2 className="text-xl font-bold text-gray-800">Manage Products</h2>
+                <button
+                    onClick={() => navigate('/admin/add-product')}
+                    className="px-4 py-2 bg-[#2e7d32] text-white font-semibold rounded-lg hover:bg-[#1b5e20] shadow-md transition-all flex items-center gap-2 text-sm"
+                >
+                    <FiPlus /> Add Product
+                </button>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                        <thead><tr className="text-left text-gray-500 bg-gray-50 border-b">
-                            <th className="p-4 font-medium">Product</th><th className="p-4 font-medium">Category</th>
-                            <th className="p-4 font-medium">Price</th><th className="p-4 font-medium">Stock</th>
-                            <th className="p-4 font-medium">Status</th><th className="p-4 font-medium">Actions</th>
-                        </tr></thead>
+                        <thead>
+                            <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-100">
+                                <th className="p-3 font-medium text-xs">Product Name</th>
+                                <th className="p-3 font-medium text-xs">Category</th>
+                                <th className="p-3 font-medium text-xs">Price</th>
+                                <th className="p-3 font-medium text-xs">Stock</th>
+                                <th className="p-3 font-medium text-xs">Actions</th>
+                            </tr>
+                        </thead>
                         <tbody>
                             {products.map(p => (
                                 <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-3">
-                                            <img src={p.imageURL} alt={p.name} className="w-10 h-10 rounded-lg object-cover bg-gray-100"
+                                    <td className="p-3">
+                                        <div className="flex items-center gap-2.5">
+                                            <img src={p.imageURL} alt={p.name} className="w-9 h-9 rounded-lg object-cover bg-gray-100"
                                                 onError={e => { e.target.src = 'https://via.placeholder.com/40'; }} />
-                                            <span className="font-medium text-gray-800 max-w-[150px] truncate">{p.name}</span>
+                                            <span className="font-medium text-gray-800 text-xs max-w-[120px] truncate">{p.name}</span>
                                         </div>
                                     </td>
-                                    <td className="p-4 text-gray-600">{p.category}</td>
-                                    <td className="p-4">
+                                    <td className="p-3 text-gray-600 text-xs">{p.category}</td>
+                                    <td className="p-3 text-xs">
                                         {editId === p.id ? (
                                             <input type="number" value={editData.price} onChange={e => setEditData({ ...editData, price: e.target.value })}
-                                                className="w-20 px-2 py-1 border rounded-lg text-sm" />
+                                                className="w-16 px-2 py-1 border rounded text-xs" />
                                         ) : <span className="font-semibold">₹{p.price}</span>}
                                     </td>
-                                    <td className="p-4">
+                                    <td className="p-3 text-xs">
                                         {editId === p.id ? (
                                             <input type="number" value={editData.stock} onChange={e => setEditData({ ...editData, stock: e.target.value })}
-                                                className="w-20 px-2 py-1 border rounded-lg text-sm" />
+                                                className="w-16 px-2 py-1 border rounded text-xs" />
                                         ) : <span className={p.stock <= 0 ? 'text-red-600 font-bold' : p.stock <= (p.lowStockThreshold || 10) ? 'text-orange-600 font-bold' : ''}>{p.stock}</span>}
                                     </td>
-                                    <td className="p-4">
-                                        {p.stock <= 0 ? <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">Out of Stock</span>
-                                            : p.stock <= (p.lowStockThreshold || 10) ? <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">Low Stock</span>
-                                                : <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">In Stock</span>}
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex gap-2">
+                                    <td className="p-3">
+                                        <div className="flex gap-1.5">
                                             {editId === p.id ? (
                                                 <>
-                                                    <button onClick={handleSave} className="px-3 py-1 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600">Save</button>
-                                                    <button onClick={() => setEditId(null)} className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded-lg hover:bg-gray-300">Cancel</button>
+                                                    <button onClick={handleSave} className="px-2.5 py-1 bg-green-500 text-white text-[10px] font-bold rounded hover:bg-green-600">Save</button>
+                                                    <button onClick={() => setEditId(null)} className="px-2.5 py-1 bg-gray-200 text-gray-700 text-[10px] font-bold rounded hover:bg-gray-300">Cancel</button>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <button onClick={() => handleEdit(p)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"><FiEdit2 /></button>
-                                                    <button onClick={() => handleDelete(p.id)} className={`p-1.5 rounded-lg ${deleting === p.id ? 'text-white bg-red-500' : 'text-red-500 hover:bg-red-50'}`}><FiTrash2 /></button>
+                                                    <button onClick={() => handleEdit(p)} className="px-2.5 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded hover:bg-blue-200">Edit</button>
+                                                    <button onClick={() => handleDelete(p.id)} className={`px-2.5 py-1 text-[10px] font-bold rounded ${deleting === p.id ? 'bg-red-500 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}>
+                                                        {deleting === p.id ? 'Confirm?' : 'Delete'}
+                                                    </button>
                                                 </>
                                             )}
                                         </div>
@@ -214,60 +203,275 @@ const ProductsManagement = ({ products }) => {
 
 // ---- Add Product ----
 const AddProduct = () => {
-    const [form, setForm] = useState({ name: '', category: 'Vegetables', price: '', discount: '0', stock: '', description: '', rating: '4', imageURL: '', lowStockThreshold: '10' });
+    const [form, setForm] = useState({
+        name: '',
+        category: 'Vegetables',
+        imageURL: '',
+        brands: [
+            {
+                name: '',
+                variants: [{ quantity: '', price: '', stock: '' }]
+            }
+        ]
+    });
     const [imageFile, setImageFile] = useState(null);
     const [loading, setLoading] = useState(false);
 
+    const handleAddBrand = () => {
+        setForm({
+            ...form,
+            brands: [...form.brands, { name: '', variants: [{ quantity: '', price: '', stock: '' }] }]
+        });
+    };
+
+    const handleRemoveBrand = (index) => {
+        if (form.brands.length > 1) {
+            const newBrands = [...form.brands];
+            newBrands.splice(index, 1);
+            setForm({ ...form, brands: newBrands });
+        }
+    };
+
+    const handleAddVariant = (brandIndex) => {
+        const newBrands = [...form.brands];
+        newBrands[brandIndex].variants.push({ quantity: '', price: '', stock: '' });
+        setForm({ ...form, brands: newBrands });
+    };
+
+    const handleRemoveVariant = (brandIndex, varIndex) => {
+        if (form.brands[brandIndex].variants.length > 1) {
+            const newBrands = [...form.brands];
+            newBrands[brandIndex].variants.splice(varIndex, 1);
+            setForm({ ...form, brands: newBrands });
+        }
+    };
+
+    const handleBrandChange = (index, field, value) => {
+        const newBrands = [...form.brands];
+        newBrands[index][field] = value;
+        setForm({ ...form, brands: newBrands });
+    };
+
+    const handleVariantChange = (brandIndex, varIndex, field, value) => {
+        const newBrands = [...form.brands];
+        newBrands[brandIndex].variants[varIndex][field] = value;
+        setForm({ ...form, brands: newBrands });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!form.name || !form.price || !form.stock) { toast.error('Fill required fields'); return; }
+        if (!form.name || !form.brands[0].variants[0].price) {
+            toast.error('Please enter product name and at least one price');
+            return;
+        }
         setLoading(true);
         try {
-            await addProduct(form, imageFile);
-            toast.success('Product added!');
-            setForm({ name: '', category: 'Vegetables', price: '', discount: '0', stock: '', description: '', rating: '4', imageURL: '', lowStockThreshold: '10' });
+            // For backward compatibility with existing components, we'll store the first variant's price/stock at top level too
+            const firstBrand = form.brands[0];
+            const firstVariant = firstBrand.variants[0];
+
+            const submitData = {
+                ...form,
+                price: Number(firstVariant.price),
+                stock: Number(firstVariant.stock),
+                brand: firstBrand.name,
+                quantity: firstVariant.quantity
+            };
+
+            await addProduct(submitData, imageFile);
+            toast.success('Product added successfully!');
+            // Reset form
+            setForm({
+                name: '', category: 'Vegetables', imageURL: '',
+                brands: [{ name: '', variants: [{ quantity: '', price: '', stock: '' }] }]
+            });
             setImageFile(null);
-        } catch { toast.error('Failed to add product'); }
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to add product');
+        }
         setLoading(false);
     };
 
     return (
-        <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Add New Product</h2>
-            <form onSubmit={handleSubmit} className="bg-white rounded-2xl border p-6 max-w-2xl">
-                <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="sm:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
-                        <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" required /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                        <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                            {['Vegetables', 'Fruits', 'Dairy', 'Grains', 'Beverages', 'Household', 'Snacks'].map(c => <option key={c}>{c}</option>)}
-                        </select></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Price (₹) *</label>
-                        <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" required /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Discount (%)</label>
-                        <input type="number" value={form.discount} onChange={e => setForm({ ...form, discount: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Stock *</label>
-                        <input type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" required /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Rating</label>
-                        <input type="number" step="0.1" max="5" value={form.rating} onChange={e => setForm({ ...form, rating: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Low Stock Threshold</label>
-                        <input type="number" value={form.lowStockThreshold} onChange={e => setForm({ ...form, lowStockThreshold: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" /></div>
-                    <div className="sm:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Image URL (or upload)</label>
-                        <input value={form.imageURL} onChange={e => setForm({ ...form, imageURL: e.target.value })} placeholder="https://..." className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none mb-2" />
-                        <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} className="text-sm text-gray-500" /></div>
-                    <div className="sm:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none" /></div>
+        <div className="max-w-4xl mx-auto py-4">
+            <div className="bg-[#fbfcff] rounded-3xl border border-gray-100 shadow-xl overflow-hidden animate-fadeIn">
+                <div className="p-8">
+                    <h2 className="text-2xl font-black text-[#1a202c] mb-8">Add New Product</h2>
+
+                    <form onSubmit={handleSubmit} className="space-y-8">
+                        {/* Basic Info Section */}
+                        <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
+                            <div className="space-y-1.5">
+                                <label className="text-[13px] font-bold text-gray-500 ml-1">Product Name</label>
+                                <input
+                                    type="text"
+                                    value={form.name}
+                                    onChange={e => setForm({ ...form, name: e.target.value })}
+                                    className="w-full px-4 py-3 bg-[#f3f6f9] border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-green-500 transition-all outline-none"
+                                    placeholder="Enter product name"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[13px] font-bold text-gray-500 ml-1">Category</label>
+                                <select
+                                    value={form.category}
+                                    onChange={e => setForm({ ...form, category: e.target.value })}
+                                    className="w-full px-4 py-3 bg-[#f3f6f9] border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-green-500 transition-all outline-none appearance-none"
+                                >
+                                    {['Vegetables', 'Dairy', 'Grains', 'Beverages', 'Household', 'Snacks', 'Leafy Greens', 'Chocolates', 'Biscuits'].map(c => (
+                                        <option key={c} value={c}>{c}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Brands & Pricing Section */}
+                        <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-[15px] font-black text-[#1a202c]">Brands & Pricing</h3>
+                                <button
+                                    type="button"
+                                    onClick={handleAddBrand}
+                                    className="px-4 py-2 bg-[#1e88e5] text-white text-xs font-bold rounded-lg hover:bg-[#1565c0] shadow-md transition-all flex items-center gap-2"
+                                >
+                                    <FiPlus /> Add Brand
+                                </button>
+                            </div>
+
+                            <div className="space-y-8">
+                                {form.brands.map((brand, brandIdx) => (
+                                    <div key={brandIdx} className="relative group/brand border border-gray-50 rounded-2xl p-4 bg-white hover:border-gray-200 transition-all">
+                                        <div className="flex gap-4 items-start">
+                                            <div className="w-8 h-8 rounded-lg bg-[#2e7d32] flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                                {brandIdx + 1}
+                                            </div>
+                                            <div className="flex-1 space-y-6">
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        value={brand.name}
+                                                        onChange={e => handleBrandChange(brandIdx, 'name', e.target.value)}
+                                                        className="w-full px-4 py-2.5 bg-[#f8fafb] border-none rounded-lg text-sm font-bold focus:ring-1 focus:ring-blue-500 outline-none"
+                                                        placeholder="Brand name (e.g. Amul)"
+                                                    />
+                                                    {form.brands.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveBrand(brandIdx)}
+                                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-300 hover:text-red-500"
+                                                        >
+                                                            <FiTrash2 className="text-sm" />
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {/* Variants Grid */}
+                                                <div className="space-y-4">
+                                                    {brand.variants.map((variant, varIdx) => (
+                                                        <div key={varIdx} className="grid grid-cols-2 gap-4 items-end relative group/variant">
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Quantity</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={variant.quantity}
+                                                                    onChange={e => handleVariantChange(brandIdx, varIdx, 'quantity', e.target.value)}
+                                                                    className="w-full px-3 py-2 bg-[#f8fafb] border-none rounded-lg text-xs font-bold focus:ring-1 focus:ring-blue-500 outline-none"
+                                                                    placeholder="e.g. 250ml"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Price (₹)</label>
+                                                                <div className="flex gap-2">
+                                                                    <div className="relative flex-1">
+                                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">₹</span>
+                                                                        <input
+                                                                            type="number"
+                                                                            value={variant.price}
+                                                                            onChange={e => handleVariantChange(brandIdx, varIdx, 'price', e.target.value)}
+                                                                            className="w-full pl-6 pr-3 py-2 bg-[#f8fafb] border-none rounded-lg text-xs font-bold focus:ring-1 focus:ring-blue-500 outline-none"
+                                                                            placeholder="0"
+                                                                        />
+                                                                    </div>
+                                                                    {brand.variants.length > 1 && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleRemoveVariant(brandIdx, varIdx)}
+                                                                            className="p-2 text-gray-300 hover:text-red-500"
+                                                                        >
+                                                                            <FiTrash2 className="text-xs" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleAddVariant(brandIdx)}
+                                                        className="mt-2 px-3 py-1.5 border border-dashed border-gray-300 text-gray-400 text-[11px] font-bold rounded-lg hover:border-green-500 hover:text-green-600 transition-all flex items-center gap-2"
+                                                    >
+                                                        <FiPlus /> Add Variant
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Extra Info */}
+                        <div className="grid md:grid-cols-2 gap-8">
+                            <div className="space-y-1.5">
+                                <label className="text-[13px] font-bold text-gray-500 ml-1">Image URL (or upload)</label>
+                                <input
+                                    type="text"
+                                    value={form.imageURL}
+                                    onChange={e => setForm({ ...form, imageURL: e.target.value })}
+                                    className="w-full px-4 py-3 bg-[#f3f6f9] border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-green-500 outline-none"
+                                    placeholder="https://..."
+                                />
+                                <div className="mt-2">
+                                    <input
+                                        type="file"
+                                        onChange={e => setImageFile(e.target.files[0])}
+                                        className="text-[11px] text-gray-400 font-bold file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-[11px] file:font-black file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="pt-4">
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full md:w-auto px-12 py-4 bg-[#2e7d32] text-white font-black rounded-2xl hover:bg-[#1b5e20] shadow-xl shadow-green-100 disabled:opacity-50 transition-all active:scale-95 text-sm uppercase tracking-wider"
+                            >
+                                {loading ? 'Processing...' : 'Add Product'}
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                <button type="submit" disabled={loading} className="mt-6 px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-200 disabled:opacity-50">
-                    {loading ? 'Adding...' : 'Add Product'}
-                </button>
-            </form>
+            </div>
         </div>
     );
 };
 
 // ---- Orders Management ----
 const OrdersManagement = ({ orders }) => {
+    const [search, setSearch] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+    const [selectedOrder, setSelectedOrder] = useState(null);
+
+    const filteredOrders = orders.filter(o => {
+        const matchSearch = !search || o.id.toLowerCase().includes(search.toLowerCase());
+        const matchStatus = !filterStatus || o.orderStatus === filterStatus;
+        return matchSearch && matchStatus;
+    });
+
     const handleStatusChange = async (orderId, newStatus) => {
         try { await updateOrderStatus(orderId, newStatus); toast.success('Status updated'); }
         catch { toast.error('Failed to update'); }
@@ -275,180 +479,192 @@ const OrdersManagement = ({ orders }) => {
 
     return (
         <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Manage Orders</h2>
-            <div className="space-y-4">
-                {orders.map(order => {
-                    const date = order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString('en-IN') : 'Recent';
-                    return (
-                        <div key={order.id} className="bg-white rounded-2xl border p-5">
-                            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-                                <div><p className="font-mono text-xs text-gray-400">{order.id}</p><p className="text-xs text-gray-400">{date}</p></div>
-                                <div className="flex items-center gap-3">
-                                    <span className="font-bold text-gray-900">₹{order.totalAmount?.toFixed(0) || 0}</span>
-                                    <select value={order.orderStatus} onChange={e => handleStatusChange(order.id, e.target.value)}
-                                        className="px-3 py-1.5 text-xs font-semibold border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                        {['placed', 'packed', 'shipped', 'delivered', 'cancelled'].map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                {order.items?.map((item, i) => (
-                                    <span key={i} className="text-xs bg-gray-50 px-2 py-1 rounded-lg">{item.name} ×{item.quantity}</span>
-                                ))}
-                            </div>
-                        </div>
-                    );
-                })}
-                {orders.length === 0 && <p className="text-center text-gray-400 py-10">No orders yet</p>}
-            </div>
-        </div>
-    );
-};
+            <h2 className="text-xl font-bold text-gray-800 mb-1">Orders Management</h2>
+            <p className="text-sm text-gray-500 mb-5">{orders.length} total orders</p>
 
-// ---- Low Stock Alerts ----
-const LowStockAlerts = ({ products }) => {
-    const lowStock = products.filter(p => p.stock <= (p.lowStockThreshold || 10));
-    const [updating, setUpdating] = useState({});
+            <div className="flex flex-col lg:flex-row gap-6 mb-5">
+                {/* Status Tabs */}
+                <div className="w-full lg:w-48 space-y-1">
+                    {[
+                        { label: 'All Orders', value: '', count: orders.length },
+                        { label: 'Placed', value: 'placed', count: orders.filter(o => o.orderStatus === 'placed').length },
+                        { label: 'Packed', value: 'packed', count: orders.filter(o => o.orderStatus === 'packed').length },
+                        { label: 'Delivered', value: 'delivered', count: orders.filter(o => o.orderStatus === 'delivered').length },
+                        { label: 'Cancelled', value: 'cancelled', count: orders.filter(o => o.orderStatus === 'cancelled').length },
+                    ].map(tab => (
+                        <button
+                            key={tab.label}
+                            onClick={() => setFilterStatus(tab.value)}
+                            className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold transition-all ${filterStatus === tab.value
+                                ? 'bg-[#1b5e20] text-white shadow-lg'
+                                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-100'
+                                }`}
+                        >
+                            {tab.label} {tab.count !== null && <span className={`float-right px-1.5 py-0.5 rounded-full text-[10px] ${filterStatus === tab.value ? 'bg-white/20' : 'bg-gray-100'}`}>{tab.count}</span>}
+                        </button>
+                    ))}
+                </div>
 
-    const handleStockUpdate = async (productId, newStock) => {
-        try {
-            await updateProduct(productId, { stock: Number(newStock) });
-            toast.success('Stock updated!');
-            setUpdating(prev => ({ ...prev, [productId]: undefined }));
-        } catch { toast.error('Update failed'); }
-    };
+                <div className="flex-1">
+                    {/* Search */}
+                    <div className="relative mb-5">
+                        <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                        <input
+                            type="text"
+                            placeholder="Search by Order ID..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-100 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:outline-none shadow-sm transition-all"
+                        />
+                    </div>
 
-    return (
-        <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Low Stock Alerts</h2>
-            <p className="text-gray-500 mb-6">{lowStock.length} items need attention</p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {lowStock.map(p => (
-                    <div key={p.id} className={`bg-white rounded-2xl border p-5 ${p.stock <= 0 ? 'border-red-200 bg-red-50/30' : 'border-orange-200 bg-orange-50/30'}`}>
-                        <div className="flex items-center gap-3 mb-3">
-                            <img src={p.imageURL} alt={p.name} className="w-12 h-12 rounded-xl object-cover" onError={e => { e.target.src = 'https://via.placeholder.com/50'; }} />
-                            <div><p className="font-semibold text-gray-800 text-sm">{p.name}</p><p className="text-xs text-gray-400">{p.category}</p></div>
-                        </div>
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm text-gray-500">Current Stock:</span>
-                            <span className={`font-bold ${p.stock <= 0 ? 'text-red-600' : 'text-orange-600'}`}>{p.stock}</span>
-                        </div>
-                        <div className="flex gap-2">
-                            <input type="number" placeholder="New stock" value={updating[p.id] || ''} onChange={e => setUpdating(prev => ({ ...prev, [p.id]: e.target.value }))}
-                                className="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-                            <button onClick={() => handleStockUpdate(p.id, updating[p.id])} disabled={!updating[p.id]}
-                                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-30">Update</button>
+                    {/* Orders Table */}
+                    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="text-left text-gray-500 bg-gray-50/50 border-b border-gray-100">
+                                        <th className="p-4 font-bold text-xs uppercase tracking-wider">Order Details</th>
+                                        <th className="p-4 font-bold text-xs uppercase tracking-wider">Customer Info</th>
+                                        <th className="p-4 font-bold text-xs uppercase tracking-wider text-right">Amount</th>
+                                        <th className="p-4 font-bold text-xs uppercase tracking-wider text-center">Status</th>
+                                        <th className="p-4 font-bold text-xs uppercase tracking-wider text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredOrders.map(order => (
+                                        <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                                            <td className="p-4">
+                                                <div className="flex flex-col">
+                                                    <span className="font-mono text-xs font-bold text-gray-900">#{order.id.slice(-8).toUpperCase()}</span>
+                                                    <span className="text-[10px] text-gray-400 mt-0.5">{order.createdAt?.toDate?.()?.toLocaleDateString() || 'Recently'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600">
+                                                        {order.userId?.slice(0, 2).toUpperCase() || 'CU'}
+                                                    </div>
+                                                    <span className="text-xs text-gray-600 font-medium">{order.userId?.slice(0, 10) || 'Customer'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <span className="font-bold text-gray-900">₹{order.totalAmount?.toFixed(2)}</span>
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full uppercase tracking-tighter ${order.orderStatus === 'delivered' ? 'bg-green-100 text-green-700' :
+                                                    order.orderStatus === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                                        order.orderStatus === 'shipped' ? 'bg-blue-100 text-blue-700' :
+                                                            'bg-orange-100 text-orange-700'
+                                                    }`}>{order.orderStatus}</span>
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <select
+                                                        value={order.orderStatus}
+                                                        onChange={e => handleStatusChange(order.id, e.target.value)}
+                                                        className="px-2 py-1 text-[11px] font-bold border border-gray-200 rounded-lg focus:ring-1 focus:ring-green-500 focus:outline-none bg-white cursor-pointer"
+                                                    >
+                                                        {['placed', 'packed', 'delivered'].map(s => (
+                                                            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                                                        ))}
+                                                    </select>
+                                                    <button
+                                                        onClick={() => setSelectedOrder(order)}
+                                                        className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                                                        title="View Details"
+                                                    >
+                                                        <FiSearch className="text-sm" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {filteredOrders.length === 0 && (
+                                        <tr><td colSpan="5" className="py-12 text-center text-gray-400 text-sm font-medium">No orders found matching your criteria</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                ))}
-                {lowStock.length === 0 && <p className="text-gray-400 col-span-full text-center py-10">All products have sufficient stock ✅</p>}
+                </div>
             </div>
-        </div>
-    );
-};
 
-// ---- Analytics ----
-const Analytics = ({ products, orders }) => {
-    const totalRevenue = orders.filter(o => o.paymentStatus === 'success').reduce((s, o) => s + (o.totalAmount || 0), 0);
-    const totalStockValue = products.reduce((s, p) => s + (p.price * p.stock), 0);
+            {/* Order Details Modal */}
+            {selectedOrder && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-fadeIn">
+                        <div className="bg-gray-50 p-4 border-b border-gray-100 flex items-center justify-between">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm">
+                                <FiShoppingBag className="text-green-600" /> Order Details
+                            </h3>
+                            <button onClick={() => setSelectedOrder(null)} className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors">
+                                <FiX className="text-gray-500" />
+                            </button>
+                        </div>
+                        <div className="p-6 max-h-[60vh] overflow-y-auto">
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Order ID</p>
+                                    <p className="font-mono text-xs font-bold text-gray-900">{selectedOrder.id}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Status</p>
+                                    <span className="text-xs font-bold text-green-600 uppercase">{selectedOrder.orderStatus}</span>
+                                </div>
+                            </div>
 
-    // Best selling
-    const salesMap = {};
-    orders.forEach(o => o.items?.forEach(item => { salesMap[item.name] = (salesMap[item.name] || 0) + item.quantity; }));
-    const bestSelling = Object.entries(salesMap).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, qty]) => ({ name, qty }));
+                            <div className="space-y-4 mb-6">
+                                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider border-b border-gray-50 pb-1">Items Ordered</p>
+                                {selectedOrder.items?.map((item, idx) => (
+                                    <div key={idx} className="flex gap-3">
+                                        <div className="w-12 h-12 bg-gray-50 rounded-lg overflow-hidden shrink-0 border border-gray-100">
+                                            <img src={item.imageURL} alt={item.name} className="w-full h-full object-cover" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-bold text-gray-900 truncate">{item.name}</p>
+                                            <p className="text-[10px] text-gray-500">{item.quantity} x ₹{item.price}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs font-bold text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
 
-    const downloadSalesReport = () => {
-        const headers = ['Order ID', 'Date', 'Customer ID', 'Items Count', 'Total Amount', 'Status', 'Payment'];
-        const rows = orders.map(o => [
-            o.id,
-            o.createdAt?.toDate ? o.createdAt.toDate().toLocaleDateString() : 'N/A',
-            o.userId,
-            o.items?.length || 0,
-            o.totalAmount.toFixed(2),
-            o.orderStatus,
-            o.paymentStatus
-        ]);
-
-        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `E-Grocery_Sales_Report_${new Date().toLocaleDateString()}.csv`;
-        link.click();
-    };
-
-    return (
-        <div>
-            <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Analytics & Reports</h2>
-                <button
-                    onClick={downloadSalesReport}
-                    className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 shadow-sm"
-                >
-                    Download CSV Report
-                </button>
-            </div>
-            <div className="grid sm:grid-cols-3 gap-4 mb-8">
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-5 text-white"><p className="text-blue-100 text-sm">Total Revenue</p><p className="text-3xl font-bold">₹{totalRevenue.toFixed(0)}</p></div>
-                <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-5 text-white"><p className="text-green-100 text-sm">Total Stock Value</p><p className="text-3xl font-bold">₹{totalStockValue.toFixed(0)}</p></div>
-                <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-5 text-white"><p className="text-purple-100 text-sm">Avg Order Value</p><p className="text-3xl font-bold">₹{orders.length > 0 ? (totalRevenue / orders.length).toFixed(0) : '0'}</p></div>
-            </div>
-            <div className="bg-white rounded-2xl border p-5">
-                <h3 className="font-bold text-gray-800 mb-4">Best Selling Products</h3>
-                {bestSelling.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={bestSelling} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis type="number" />
-                            <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
-                            <Tooltip />
-                            <Bar dataKey="qty" fill="#8b5cf6" radius={[0, 8, 8, 0]} name="Units Sold" />
-                        </BarChart>
-                    </ResponsiveContainer>
-                ) : <p className="text-gray-400 text-center py-10">No sales data yet</p>}
-            </div>
-        </div>
-    );
-};
-
-// ---- Store Maintenance ----
-const StoreMaintenance = () => {
-    const [loading, setLoading] = useState(false);
-
-    const handleSeed = async () => {
-        setLoading(true);
-        try {
-            await seedProducts();
-            toast.success('Sample products seeded!');
-        } catch (error) {
-            toast.error('Seeding failed');
-        }
-        setLoading(false);
-    };
-
-    return (
-        <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Store Maintenance</h2>
-            <div className="bg-white rounded-2xl border p-6 max-w-xl">
-                <h3 className="font-bold text-gray-800 mb-2">Sample Data Seeding</h3>
-                <p className="text-sm text-gray-500 mb-6"> Populate the store with sample products for testing. This will only add products if the store is currently empty.</p>
-                <button
-                    onClick={handleSeed}
-                    disabled={loading}
-                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50"
-                >
-                    {loading ? 'Seeding...' : 'Seed Sample Products'}
-                </button>
-            </div>
+                            <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                                <div className="flex justify-between text-xs font-medium text-gray-500">
+                                    <span>Subtotal</span>
+                                    <span>₹{selectedOrder.totalAmount?.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-medium text-gray-500">
+                                    <span>Delivery</span>
+                                    <span className="text-green-600 font-bold text-[10px] uppercase tracking-wider">Free</span>
+                                </div>
+                                <div className="flex justify-between text-sm font-bold text-gray-900 pt-2 border-t border-gray-200">
+                                    <span>Total Amount</span>
+                                    <span>₹{selectedOrder.totalAmount?.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                            <button
+                                onClick={() => setSelectedOrder(null)}
+                                className="px-5 py-2 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
 // ---- Main Admin Dashboard ----
 const AdminDashboard = () => {
-    const { user, isAdmin } = useAuth();
-    const navigate = useNavigate();
+    const { user } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [products, setProducts] = useState([]);
     const [orders, setOrders] = useState([]);
@@ -460,32 +676,45 @@ const AdminDashboard = () => {
     }, []);
 
     return (
-        <div className="flex min-h-screen bg-gray-50">
+        <div className="flex min-h-screen bg-[#f5f5f5]">
             <AdminSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
             <div className="flex-1 min-w-0">
                 {/* Top Bar */}
-                <div className="bg-white border-b px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+                <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
                     <div className="flex items-center gap-3">
-                        <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"><FiMenu /></button>
-                        <h1 className="font-bold text-gray-800">Admin Dashboard</h1>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">
-                            {user?.displayName?.[0]?.toUpperCase() || 'A'}
+                        <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 hover:bg-gray-100 rounded-lg">
+                            <FiMenu />
+                        </button>
+                        <div className="flex items-center gap-2">
+                            <img src="/logo.png" alt="SRS Logo" className="w-8 h-8 rounded-lg object-cover" />
+                            <div>
+                                <p className="text-xs font-bold text-gray-800">Sri Ranga</p>
+                                <p className="text-[9px] text-gray-400">Supermarket</p>
+                            </div>
                         </div>
-                        <span className="text-sm font-medium text-gray-700 hidden sm:block">{user?.displayName || 'Admin'}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
+                            <FiUser className="text-gray-500 text-sm" />
+                        </button>
+                        <button className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
+                            <FiSettings className="text-gray-500 text-sm" />
+                        </button>
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-[#2e7d32] rounded-lg flex items-center justify-center text-white text-xs font-bold">
+                                {user?.displayName?.[0]?.toUpperCase() || 'A'}
+                            </div>
+                            <span className="text-xs font-medium text-gray-700 hidden sm:block">{user?.displayName || 'Admin'}</span>
+                        </div>
                     </div>
                 </div>
                 {/* Content */}
-                <div className="p-4 sm:p-6 lg:p-8">
+                <div className="p-4 sm:p-5 lg:p-6">
                     <Routes>
                         <Route index element={<DashboardOverview products={products} orders={orders} />} />
                         <Route path="products" element={<ProductsManagement products={products} />} />
                         <Route path="add-product" element={<AddProduct />} />
                         <Route path="orders" element={<OrdersManagement orders={orders} />} />
-                        <Route path="low-stock" element={<LowStockAlerts products={products} />} />
-                        <Route path="analytics" element={<Analytics products={products} orders={orders} />} />
-                        <Route path="maintenance" element={<StoreMaintenance />} />
                     </Routes>
                 </div>
             </div>

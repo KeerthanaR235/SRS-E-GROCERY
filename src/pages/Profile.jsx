@@ -1,11 +1,11 @@
 // Profile Page - User profile details and account management
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { FiUser, FiMail, FiCalendar, FiShield, FiEdit2, FiSave, FiLogOut } from 'react-icons/fi';
+import { FiUser, FiMail, FiCalendar, FiShield, FiEdit2, FiSave, FiLogOut, FiHash } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const Profile = () => {
-    const { user, userRole, logout } = useAuth();
+    const { user, userRole, customerId, logout } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
     const [name, setName] = useState(user?.displayName || '');
 
@@ -89,6 +89,14 @@ const Profile = () => {
                             </div>
 
                             <div className="space-y-6">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Customer ID</label>
+                                    <div className="flex items-center gap-3 bg-green-50 text-green-700 px-4 py-3 rounded-xl border border-green-100">
+                                        <FiHash />
+                                        <span className="font-semibold">{customerId || 'N/A'}</span>
+                                    </div>
+                                </div>
+
                                 <div>
                                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Account Role</label>
                                     <div className="flex items-center gap-3 bg-blue-50 text-blue-700 px-4 py-3 rounded-xl border border-blue-100">

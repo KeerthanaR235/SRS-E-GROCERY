@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { WishlistProvider } from './context/WishlistContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import PageLoader from './components/PageLoader';
@@ -13,6 +14,7 @@ import Signup from './pages/Signup';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Orders from './pages/Orders';
+import Wishlist from './pages/Wishlist';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
 
@@ -21,6 +23,19 @@ const ProtectedRoute = ({ children }) => {
     const { user, loading } = useAuth();
     if (loading) return <PageLoader />;
     if (!user) return <Navigate to="/login" />;
+    return children;
+};
+
+// Admin Route wrapper - checks if user is admin via Firebase OR hardcoded login
+const AdminRoute = ({ children }) => {
+    const { user, userRole, loading } = useAuth();
+    // Check localStorage for hardcoded admin login
+    const isAdminLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
+    if (loading) return <PageLoader />;
+    // Allow access if admin is logged in via hardcoded credentials OR via Firebase admin role
+    if (isAdminLoggedIn) return children;
+    if (!user) return <Navigate to="/login" />;
+    if (userRole !== 'admin') return <Navigate to="/" />;
     return children;
 };
 
@@ -95,6 +110,13 @@ const AppContent = () => {
                         </CustomerLayout>
                     </ProtectedRoute>
                 } />
+                <Route path="/wishlist" element={
+                    <ProtectedRoute>
+                        <CustomerLayout>
+                            <Wishlist />
+                        </CustomerLayout>
+                    </ProtectedRoute>
+                } />
                 <Route path="/profile" element={
                     <ProtectedRoute>
                         <CustomerLayout>
@@ -105,9 +127,9 @@ const AppContent = () => {
 
                 {/* Admin Pages */}
                 <Route path="/admin/*" element={
-                    <ProtectedRoute>
+                    <AdminRoute>
                         <AdminDashboard />
-                    </ProtectedRoute>
+                    </AdminRoute>
                 } />
 
                 {/* Fallback */}
@@ -132,7 +154,9 @@ const App = () => {
         <Router>
             <AuthProvider>
                 <CartProvider>
-                    <AppContent />
+                    <WishlistProvider>
+                        <AppContent />
+                    </WishlistProvider>
                 </CartProvider>
             </AuthProvider>
         </Router>

@@ -28,7 +28,7 @@ export const createOrder = async (orderData) => {
 };
 
 // Create order and deduct stock (atomic-like operation)
-export const createOrderAndDeductStock = async (userId, cartItems, paymentId, paymentStatus, totalAmount) => {
+export const createOrderAndDeductStock = async (userId, cartItems, paymentId, paymentStatus, totalAmount, customerInfo = {}, paymentMethod = 'online') => {
     // Validate stock availability first
     for (const item of cartItems) {
         if (item.quantity > item.stock) {
@@ -50,7 +50,14 @@ export const createOrderAndDeductStock = async (userId, cartItems, paymentId, pa
         totalAmount,
         paymentId: paymentId || '',
         paymentStatus: paymentStatus || 'pending',
-        orderStatus: 'placed'
+        paymentMethod: paymentMethod || 'online',
+        orderStatus: 'placed',
+        customerInfo: {
+            name: customerInfo.fullName || '',
+            phone: customerInfo.phone || '',
+            email: customerInfo.email || '',
+            address: `${customerInfo.street}, ${customerInfo.city}, ${customerInfo.state} - ${customerInfo.pincode}`
+        }
     };
 
     const orderId = await createOrder(orderData);
