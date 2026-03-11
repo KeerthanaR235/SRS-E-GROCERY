@@ -4,10 +4,12 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 import AdminSidebar from '../components/AdminSidebar';
 import { useAuth } from '../context/AuthContext';
 import { subscribeToProducts, addProduct, updateProduct, deleteProduct } from '../services/productService';
-import { subscribeToAllOrders, updateOrderStatus } from '../services/orderService';
+import { subscribeToAllOrders, updateOrderStatus, hideOrderFromAdmin } from '../services/orderService';
 import toast from 'react-hot-toast';
-import { FiMenu, FiPackage, FiShoppingBag, FiDollarSign, FiPlus, FiEdit2, FiTrash2, FiTrendingUp, FiSearch, FiUser, FiSettings } from 'react-icons/fi';
+import { FiMenu, FiPackage, FiShoppingBag, FiDollarSign, FiPlus, FiEdit2, FiTrash2, FiTrendingUp, FiSearch, FiUser, FiSettings, FiX, FiDownload } from 'react-icons/fi';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // ---- Dashboard Overview ----
 const DashboardOverview = ({ products, orders }) => {
@@ -83,7 +85,7 @@ const DashboardOverview = ({ products, orders }) => {
                         <tbody>
                             {orders.slice(0, 5).map(order => (
                                 <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50">
-                                    <td className="py-3 font-mono text-xs text-gray-600">{order.id.slice(0, 10)}...</td>
+                                    <td className="py-3 font-mono text-xs text-gray-600">{order.displayOrderId || order.id.slice(0, 10)}</td>
                                     <td className="py-3 text-xs text-gray-600">{order.userId?.slice(0, 8) || 'Customer'}</td>
                                     <td className="py-3 font-semibold text-xs">₹{order.totalAmount?.toFixed(0) || 0}</td>
                                     <td className="py-3">
@@ -538,8 +540,100 @@ const OrdersManagement = ({ orders }) => {
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [selectedOrder, setSelectedOrder] = useState(null);
+    const [deletingId, setDeletingId] = useState(null);
+
+    const handleDeleteOrder = async (orderId) => {
+        if (deletingId === orderId) {
+            try {
+                await hideOrderFromAdmin(orderId);
+                toast.success('Order removed from admin view');
+            } catch {
+                toast.error('Failed to remove order');
+            }
+            setDeletingId(null);
+        } else {
+            setDeletingId(orderId);
+            setTimeout(() => setDeletingId(null), 3000);
+        }
+    };
+
+    const downloadBill = (order) => {
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const date = order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+        const customer = order.customerInfo || { name: 'Customer', phone: '', email: '' };
+
+        // Header
+        doc.setFillColor(190, 215, 235);
+        doc.rect(0, 0, 210, 65, 'F');
+        doc.setFontSize(10);
+        doc.setTextColor(80, 80, 80);
+        doc.setFont('helvetica', 'normal');
+        ['Sri Ranga Supermarket', 'C57, 4th Cross Street,', 'Thillai Nagar, Trichy', 'Tel: +91 8056644344', 'Email: rengafoods19@gmail.com'].forEach((line, i) => {
+            doc.text(line, 55, 25 + (i * 5));
+        });
+        doc.setFontSize(35);
+        doc.setTextColor(45, 84, 127);
+        doc.setFont('helvetica', 'bold');
+        doc.text('RECEIPT', 140, 42);
+
+        // Customer Info
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text((customer.name || 'Customer').toUpperCase(), 15, 80);
+        doc.setFont('helvetica', 'normal');
+        doc.text(customer.phone || '', 15, 86);
+        doc.text(customer.email || '', 15, 92);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Order Date:', 140, 80);
+        doc.setFont('helvetica', 'normal');
+        doc.text(date, 165, 80);
+
+        // Separator with IDs
+        doc.setDrawColor(220, 220, 220);
+        doc.line(15, 105, 195, 105);
+        doc.setFontSize(9);
+        doc.text(`Customer ID : ${customer.customerId || order.userId?.slice(0, 12).toUpperCase() || ''} | Order ID: ${order.displayOrderId || order.id.slice(0, 12).toUpperCase()}`, 105, 112, { align: 'center' });
+        doc.line(15, 118, 195, 118);
+
+        // Items Table
+        const tableColumn = ['#', 'ITEM DESCRIPTION', 'QUANTITY', 'UNIT PRICE', 'GST (5%)', 'AMOUNT ( INR )'];
+        const tableRows = (order.items || []).map((item, index) => {
+            const unitPrice = item.price;
+            const gstAmount = unitPrice * item.quantity * 0.05;
+            const subtotal = (unitPrice * item.quantity) + gstAmount;
+            return [index + 1, item.name.toUpperCase(), item.quantity, unitPrice.toFixed(2), gstAmount.toFixed(2), subtotal.toFixed(2)];
+        });
+        autoTable(doc, {
+            head: [tableColumn], body: tableRows, startY: 125, theme: 'plain',
+            headStyles: { fillColor: [190, 215, 235], textColor: [45, 84, 127], fontSize: 9, fontStyle: 'bold', halign: 'center' },
+            bodyStyles: { fontSize: 9, halign: 'center' },
+            columnStyles: { 1: { halign: 'left' } },
+            margin: { left: 15, right: 15 }
+        });
+        const finalY = doc.lastAutoTable.finalY;
+
+        // Net Total
+        doc.setFillColor(45, 84, 127);
+        doc.rect(120, finalY + 5, 75, 10, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Net Total', 125, finalY + 11.5);
+        doc.text(`${(order.totalAmount || 0).toFixed(2)}`, 190, finalY + 11.5, { align: 'right' });
+
+        // Footer
+        doc.setFillColor(190, 215, 235);
+        doc.rect(15, finalY + 30, 180, 12, 'F');
+        doc.setTextColor(80, 80, 80);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Thanks for shopping in Sri Ranga SuperMarket!!Order again!!', 105, finalY + 37.5, { align: 'center' });
+
+        doc.save(`SRS_Order_${order.displayOrderId || order.id.slice(0, 8)}.pdf`);
+    };
 
     const filteredOrders = orders.filter(o => {
+        if (o.adminHidden) return false;
         const matchSearch = !search || o.id.toLowerCase().includes(search.toLowerCase());
         const matchStatus = !filterStatus || o.orderStatus === filterStatus;
         return matchSearch && matchStatus;
@@ -550,20 +644,22 @@ const OrdersManagement = ({ orders }) => {
         catch { toast.error('Failed to update'); }
     };
 
-    return (
+        const visibleOrders = orders.filter(o => !o.adminHidden);
+
+        return (
         <div>
             <h2 className="text-xl font-bold text-gray-800 mb-1">Orders Management</h2>
-            <p className="text-sm text-gray-500 mb-5">{orders.length} total orders</p>
+            <p className="text-sm text-gray-500 mb-5">{visibleOrders.length} total orders</p>
 
             <div className="flex flex-col lg:flex-row gap-6 mb-5">
                 {/* Status Tabs */}
                 <div className="w-full lg:w-48 space-y-1">
                     {[
-                        { label: 'All Orders', value: '', count: orders.length },
-                        { label: 'Placed', value: 'placed', count: orders.filter(o => o.orderStatus === 'placed').length },
-                        { label: 'Packed', value: 'packed', count: orders.filter(o => o.orderStatus === 'packed').length },
-                        { label: 'Delivered', value: 'delivered', count: orders.filter(o => o.orderStatus === 'delivered').length },
-                        { label: 'Cancelled', value: 'cancelled', count: orders.filter(o => o.orderStatus === 'cancelled').length },
+                        { label: 'All Orders', value: '', count: visibleOrders.length },
+                        { label: 'Placed', value: 'placed', count: visibleOrders.filter(o => o.orderStatus === 'placed').length },
+                        { label: 'Packed', value: 'packed', count: visibleOrders.filter(o => o.orderStatus === 'packed').length },
+                        { label: 'Delivered', value: 'delivered', count: visibleOrders.filter(o => o.orderStatus === 'delivered').length },
+                        { label: 'Cancelled', value: 'cancelled', count: visibleOrders.filter(o => o.orderStatus === 'cancelled').length },
                     ].map(tab => (
                         <button
                             key={tab.label}
@@ -609,7 +705,7 @@ const OrdersManagement = ({ orders }) => {
                                         <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                                             <td className="p-4">
                                                 <div className="flex flex-col">
-                                                    <span className="font-mono text-xs font-bold text-gray-900">#{order.id.slice(-8).toUpperCase()}</span>
+                                                    <span className="font-mono text-xs font-bold text-gray-900">{order.displayOrderId || '#' + order.id.slice(-8).toUpperCase()}</span>
                                                     <span className="text-[10px] text-gray-400 mt-0.5">{order.createdAt?.toDate?.()?.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-') || 'Recently'}</span>
                                                 </div>
                                             </td>
@@ -646,12 +742,28 @@ const OrdersManagement = ({ orders }) => {
                                                         ))}
                                                     </select>
                                                     <button
+                                                        onClick={() => downloadBill(order)}
+                                                        className="p-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                                                        title="Download Bill"
+                                                    >
+                                                        <FiDownload className="text-sm" />
+                                                    </button>
+                                                    <button
                                                         onClick={() => setSelectedOrder(order)}
                                                         className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
                                                         title="View Details"
                                                     >
                                                         <FiSearch className="text-sm" />
                                                     </button>
+                                                    {(order.orderStatus === 'delivered' || order.orderStatus === 'cancelled') && (
+                                                        <button
+                                                            onClick={() => handleDeleteOrder(order.id)}
+                                                            className={`p-1.5 rounded-lg transition-colors ${deletingId === order.id ? 'bg-red-500 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+                                                            title={deletingId === order.id ? 'Click again to confirm' : 'Delete Order'}
+                                                        >
+                                                            <FiTrash2 className="text-sm" />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -682,7 +794,7 @@ const OrdersManagement = ({ orders }) => {
                             <div className="flex justify-between items-start mb-6">
                                 <div>
                                     <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Order ID</p>
-                                    <p className="font-mono text-xs font-bold text-gray-900">{selectedOrder.id}</p>
+                                    <p className="font-mono text-xs font-bold text-gray-900">{selectedOrder.displayOrderId || selectedOrder.id}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Status</p>

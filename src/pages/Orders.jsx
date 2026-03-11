@@ -27,10 +27,18 @@ const Orders = () => {
 
     useEffect(() => {
         if (!user) return;
-        const unsubscribe = getUserOrders(user.uid, (data) => {
-            setOrders(data);
-            setLoading(false);
-        });
+        const unsubscribe = getUserOrders(
+            user.uid,
+            (data) => {
+                setOrders(data);
+                setLoading(false);
+            },
+            (error) => {
+                console.error('Failed to load orders:', error);
+                toast.error('Failed to load orders. Please try again.');
+                setLoading(false);
+            }
+        );
         return () => unsubscribe();
     }, [user]);
 
@@ -64,7 +72,7 @@ const Orders = () => {
         const doc = new jsPDF("p", "mm", "a4");
         const date = order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
         const customer = order.customerInfo || { name: user.displayName || 'Customer', phone: '9840XXXXXX', email: user.email };
-        const invoiceNo = `${order.id.slice(0, 10).toUpperCase()}`;
+        const invoiceNo = order.displayOrderId || order.id.slice(0, 10).toUpperCase();
 
         // 1. Blue Header Section
         doc.setFillColor(190, 215, 235); // Light Blue Background
@@ -104,15 +112,15 @@ const Orders = () => {
 
         // Right Column
         doc.setFont("helvetica", "bold");
-        doc.text("Order Date:", 115, 80);
+        doc.text("Order Date:", 140, 80);
         doc.setFont("helvetica", "normal");
-        doc.text(date, 150, 80);
+        doc.text(date, 165, 80);
 
         // 4. Horizontal Separator with Customer ID
         doc.setDrawColor(220, 220, 220);
         doc.line(15, 105, 195, 105);
         doc.setFontSize(9);
-        doc.text(`Customer ID : ${customerId || user.uid.slice(0, 12).toUpperCase()} | Order ID: ${order.id.slice(0, 12).toUpperCase()}`, 105, 112, { align: 'center' });
+        doc.text(`Customer ID : ${customerId || user.uid.slice(0, 12).toUpperCase()} | Order ID: ${order.displayOrderId || order.id.slice(0, 12).toUpperCase()}`, 105, 112, { align: 'center' });
         doc.line(15, 118, 195, 118);
 
         // 5. Items Table
@@ -171,7 +179,7 @@ const Orders = () => {
         doc.setFont("helvetica", "normal");
         doc.text("Thanks for shopping in Sri Ranga SuperMarket!!Order again!!", 105, finalY + 37.5, { align: 'center' });
 
-        doc.save(`SRS_Order_${order.id.slice(0, 8)}.pdf`);
+        doc.save(`SRS_Order_${order.displayOrderId || order.id.slice(0, 8)}.pdf`);
     };
 
     if (loading) return (
@@ -215,7 +223,7 @@ const Orders = () => {
                                         </div>
                                         <div>
                                             <p className="text-xs text-gray-400">Order ID</p>
-                                            <p className="font-mono text-sm font-semibold text-gray-700">{order.id.slice(0, 12)}...</p>
+                                            <p className="font-mono text-sm font-semibold text-gray-700">{order.displayOrderId || order.id.slice(0, 12)}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">

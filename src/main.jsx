@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 // import './deleteAllProducts.js'  // Temporary - delete all products
+// import './deleteUserOrders.js'  // Temporary - delete orders for specific user
 
 createRoot(document.getElementById('root')).render(
     <StrictMode>

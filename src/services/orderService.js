@@ -3,6 +3,7 @@ import {
     collection,
     addDoc,
     updateDoc,
+    deleteDoc,
     doc,
     getDocs,
     getDoc,
@@ -17,14 +18,25 @@ import { deductStock } from './productService';
 
 const ORDERS_COLLECTION = 'orders';
 
+// Generate custom order ID: GRY-2026Mar11-45673
+const generateDisplayOrderId = () => {
+    const now = new Date();
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const dateStr = `${now.getFullYear()}${months[now.getMonth()]}${String(now.getDate()).padStart(2, '0')}`;
+    const uniqueNum = String(Math.floor(10000 + Math.random() * 90000));
+    return `GRY-${dateStr}-${uniqueNum}`;
+};
+
 // Create a new order
 export const createOrder = async (orderData) => {
+    const displayOrderId = generateDisplayOrderId();
     const docRef = await addDoc(collection(db, ORDERS_COLLECTION), {
         ...orderData,
+        displayOrderId,
         orderStatus: 'placed',
         createdAt: serverTimestamp()
     });
-    return docRef.id;
+    return { id: docRef.id, displayOrderId };
 };
 
 // Create order and deduct stock (atomic-like operation)
@@ -63,29 +75,37 @@ export const createOrderAndDeductStock = async (userId, cartItems, paymentId, pa
         }
     };
 
-    const orderId = await createOrder(orderData);
+    const result = await createOrder(orderData);
 
     // Deduct stock only if payment is successful
     if (paymentStatus === 'success') {
         await deductStock(cartItems);
     }
 
-    return orderId;
+    return result;
 };
 
 // Get orders by user ID
-export const getUserOrders = (userId, callback) => {
+export const getUserOrders = (userId, callback, onError) => {
     const q = query(
         collection(db, ORDERS_COLLECTION),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', userId)
     );
     return onSnapshot(q, (snapshot) => {
         const orders = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         }));
+        // Sort client-side: newest first
+        orders.sort((a, b) => {
+            const aTime = a.createdAt?.seconds || 0;
+            const bTime = b.createdAt?.seconds || 0;
+            return bTime - aTime;
+        });
         callback(orders);
+    }, (error) => {
+        console.error('getUserOrders error:', error);
+        if (onError) onError(error);
     });
 };
 
@@ -117,9 +137,27 @@ export const getOrder = async (orderId) => {
     return null;
 };
 
+// Hide order from admin view (order still visible to customer)
+export const hideOrderFromAdmin = async (orderId) => {
+    const docRef = doc(db, ORDERS_COLLECTION, orderId);
+    await updateDoc(docRef, { adminHidden: true });
+};
+
 // Get all orders (for reports)
 export const getAllOrders = async () => {
     const q = query(collection(db, ORDERS_COLLECTION), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+// Delete all orders for a specific user
+export const deleteAllUserOrders = async (userId) => {
+    const q = query(collection(db, ORDERS_COLLECTION), where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+    let count = 0;
+    for (const docSnap of snapshot.docs) {
+        await deleteDoc(doc(db, ORDERS_COLLECTION, docSnap.id));
+        count++;
+    }
+    return count;
 };

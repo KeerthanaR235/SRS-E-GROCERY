@@ -48,8 +48,8 @@ const Checkout = () => {
         try {
             if (paymentMethod === 'cod') {
                 const codResult = processCOD({ amount: orderTotal });
-                const newOrderId = await createOrderAndDeductStock(user.uid, currentItems, codResult.paymentId, 'success', orderTotal, { ...address, email: user.email, customerId: customerId || '' }, 'cod');
-                setOrderId(newOrderId);
+                const result = await createOrderAndDeductStock(user.uid, currentItems, codResult.paymentId, 'success', orderTotal, { ...address, email: user.email, customerId: customerId || '' }, 'cod');
+                setOrderId(result.displayOrderId);
                 setFinalOrderItems(currentItems);
                 setFinalOrderTotal(orderTotal);
                 setOrderPlaced(true);
@@ -58,8 +58,8 @@ const Checkout = () => {
                 const orderDetails = { amount: orderTotal, items: currentItems, customerName: address.fullName, customerEmail: user.email, customerPhone: address.phone };
                 const onSuccess = async (result) => {
                     try {
-                        const id = await createOrderAndDeductStock(user.uid, currentItems, result.paymentId, 'success', orderTotal, { ...address, email: user.email, customerId: customerId || '' }, 'online');
-                        setOrderId(id);
+                        const orderResult = await createOrderAndDeductStock(user.uid, currentItems, result.paymentId, 'success', orderTotal, { ...address, email: user.email, customerId: customerId || '' }, 'online');
+                        setOrderId(orderResult.displayOrderId);
                         setFinalOrderItems(currentItems);
                         setFinalOrderTotal(orderTotal);
                         setOrderPlaced(true);
@@ -88,7 +88,7 @@ const Checkout = () => {
                     </div>
                     <h2 className="text-xl font-bold text-[#2e7d32] mb-1">Order Confirmed!</h2>
                     <p className="text-sm text-gray-500 mb-1">Thank you for your purchase!</p>
-                    <p className="text-xs text-gray-400 mb-4">Order #{orderId.slice(0, 8)}</p>
+                    <p className="text-xs text-gray-400 mb-4">Order #{orderId}</p>
 
                     <div className="bg-gray-50 rounded-lg p-4 mb-4 text-left">
                         <p className="text-xs font-semibold text-gray-700 mb-2">Order Summary</p>
