@@ -4,11 +4,47 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { createOrderAndDeductStock } from '../services/orderService';
-import { initiateRazorpayPayment, simulatePayment, processCOD } from '../services/paymentService';
-import toast from 'react-hot-toast';
-import { FiCreditCard, FiTruck, FiMapPin, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { processCOD } from '../services/paymentService';import toast from 'react-hot-toast';
+import { FiCreditCard, FiTruck, FiMapPin, FiCheckCircle, FiXCircle, FiX } from 'react-icons/fi';
 
-
+// Dummy QR Code SVG component
+const DummyQRCode = ({ size = 200 }) => {
+    // A fixed pattern that looks like a real QR code
+    const pattern = [
+        [1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
+        [1,0,0,0,0,0,1,0,0,1,0,1,1,0,1,0,0,0,0,0,1],
+        [1,0,1,1,1,0,1,0,1,1,0,0,1,0,1,0,1,1,1,0,1],
+        [1,0,1,1,1,0,1,0,0,1,1,0,0,0,1,0,1,1,1,0,1],
+        [1,0,1,1,1,0,1,0,1,0,1,1,0,0,1,0,1,1,1,0,1],
+        [1,0,0,0,0,0,1,0,0,0,0,1,0,0,1,0,0,0,0,0,1],
+        [1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
+        [0,0,0,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0],
+        [1,0,1,0,1,1,1,1,0,0,1,1,0,1,1,0,1,0,1,1,0],
+        [0,1,0,1,1,0,0,1,1,0,1,0,1,0,0,1,0,1,0,0,1],
+        [1,1,0,0,1,1,1,0,1,1,0,1,1,0,1,1,0,0,1,1,0],
+        [0,0,1,1,0,1,0,0,0,1,1,0,0,1,0,1,1,0,1,0,1],
+        [1,0,1,1,0,0,1,1,1,0,1,1,0,0,1,0,1,1,0,1,0],
+        [0,0,0,0,0,0,0,0,1,0,0,1,0,1,0,1,0,0,1,0,1],
+        [1,1,1,1,1,1,1,0,0,1,1,0,1,0,1,1,0,1,0,1,0],
+        [1,0,0,0,0,0,1,0,1,0,1,1,0,0,0,1,1,0,0,1,1],
+        [1,0,1,1,1,0,1,0,1,1,0,0,1,1,1,0,1,1,0,0,0],
+        [1,0,1,1,1,0,1,0,0,0,1,0,1,0,1,1,0,0,1,1,1],
+        [1,0,1,1,1,0,1,0,1,1,1,1,0,1,0,0,1,0,1,0,0],
+        [1,0,0,0,0,0,1,0,0,1,0,0,1,0,1,1,0,1,1,0,1],
+        [1,1,1,1,1,1,1,0,1,0,1,1,0,1,1,0,1,0,0,1,0],
+    ];
+    const cellSize = size / 21;
+    return (
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+            <rect width={size} height={size} fill="white" />
+            {pattern.map((row, y) =>
+                row.map((cell, x) =>
+                    cell ? <rect key={`${x}-${y}`} x={x * cellSize} y={y * cellSize} width={cellSize} height={cellSize} fill="#000" /> : null
+                )
+            )}
+        </svg>
+    );
+};
 
 const Checkout = () => {
     const { cartItems, getSubtotal, getGST, getTotal, clearCart } = useCart();
@@ -21,6 +57,7 @@ const Checkout = () => {
     const [orderId, setOrderId] = useState('');
     const [finalOrderItems, setFinalOrderItems] = useState([]);
     const [finalOrderTotal, setFinalOrderTotal] = useState(0);
+    const [showQR, setShowQR] = useState(false);
     const [address, setAddress] = useState({
         fullName: user?.displayName || '',
         phone: profileAddress?.phone || '',
@@ -41,38 +78,43 @@ const Checkout = () => {
 
     const handlePayment = async () => {
         if (!validateAddress() || cartItems.length === 0) return;
+
+        if (paymentMethod === 'online') {
+            setShowQR(true);
+            return;
+        }
+
         setProcessing(true);
         const orderTotal = getTotal();
         const currentItems = [...cartItems];
 
         try {
-            if (paymentMethod === 'cod') {
-                const codResult = processCOD({ amount: orderTotal });
-                const result = await createOrderAndDeductStock(user.uid, currentItems, codResult.paymentId, 'success', orderTotal, { ...address, email: user.email, customerId: customerId || '' }, 'cod');
-                setOrderId(result.displayOrderId);
-                setFinalOrderItems(currentItems);
-                setFinalOrderTotal(orderTotal);
-                setOrderPlaced(true);
-                clearCart();
-            } else {
-                const orderDetails = { amount: orderTotal, items: currentItems, customerName: address.fullName, customerEmail: user.email, customerPhone: address.phone };
-                const onSuccess = async (result) => {
-                    try {
-                        const orderResult = await createOrderAndDeductStock(user.uid, currentItems, result.paymentId, 'success', orderTotal, { ...address, email: user.email, customerId: customerId || '' }, 'online');
-                        setOrderId(orderResult.displayOrderId);
-                        setFinalOrderItems(currentItems);
-                        setFinalOrderTotal(orderTotal);
-                        setOrderPlaced(true);
-                        clearCart();
-                    } catch { setOrderFailed(true); }
-                    setProcessing(false);
-                };
-                const onFailure = () => { setOrderFailed(true); setProcessing(false); };
-                try { await initiateRazorpayPayment(orderDetails, onSuccess, onFailure); }
-                catch { await simulatePayment(orderDetails, onSuccess, onFailure); }
-                return;
-            }
+            const codResult = processCOD({ amount: orderTotal });
+            const result = await createOrderAndDeductStock(user.uid, currentItems, codResult.paymentId, 'success', orderTotal, { ...address, email: user.email, customerId: customerId || '' }, 'cod');
+            setOrderId(result.displayOrderId);
+            setFinalOrderItems(currentItems);
+            setFinalOrderTotal(orderTotal);
+            setOrderPlaced(true);
+            clearCart();
         } catch (error) { toast.error(error.message || 'Checkout failed'); setOrderFailed(true); }
+        setProcessing(false);
+    };
+
+    const handleQRPaymentDone = async () => {
+        setShowQR(false);
+        setProcessing(true);
+        const orderTotal = getTotal();
+        const currentItems = [...cartItems];
+
+        try {
+            const paymentId = `gpay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const result = await createOrderAndDeductStock(user.uid, currentItems, paymentId, 'success', orderTotal, { ...address, email: user.email, customerId: customerId || '' }, 'online');
+            setOrderId(result.displayOrderId);
+            setFinalOrderItems(currentItems);
+            setFinalOrderTotal(orderTotal);
+            setOrderPlaced(true);
+            clearCart();
+        } catch (error) { toast.error(error.message || 'Payment failed'); setOrderFailed(true); }
         setProcessing(false);
     };
 
@@ -201,6 +243,61 @@ const Checkout = () => {
                     </div>
                 </div>
             </div>
+
+            {/* GPay QR Code Modal */}
+            {showQR && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setShowQR(false)}>
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+                    <div className="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden animate-fadeIn" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-[#2e7d32] to-[#43a047] p-5 text-white text-center relative">
+                            <button onClick={() => setShowQR(false)} className="absolute right-4 top-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-all">
+                                <FiX className="text-white" />
+                            </button>
+                            <div className="text-3xl mb-1">📱</div>
+                            <h3 className="text-lg font-black">Google Pay</h3>
+                            <p className="text-green-100 text-xs mt-0.5">Scan QR code to pay</p>
+                        </div>
+
+                        {/* QR Code */}
+                        <div className="p-6 flex flex-col items-center">
+                            <div className="bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-inner mb-4">
+                                <DummyQRCode size={200} />
+                            </div>
+
+                            {/* Amount */}
+                            <div className="text-center mb-5">
+                                <p className="text-xs text-gray-400 mb-1">Amount to Pay</p>
+                                <p className="text-3xl font-black text-gray-900">₹{getTotal().toFixed(2)}</p>
+                                <p className="text-[11px] text-gray-400 mt-1.5">Scan with any UPI app (GPay, PhonePe, Paytm)</p>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="w-full flex items-center gap-3 mb-5">
+                                <hr className="flex-1 border-gray-200" />
+                                <span className="text-[10px] text-gray-400 font-bold uppercase">After payment</span>
+                                <hr className="flex-1 border-gray-200" />
+                            </div>
+
+                            {/* Confirm Button */}
+                            <button
+                                onClick={handleQRPaymentDone}
+                                disabled={processing}
+                                className="w-full py-3.5 bg-[#2e7d32] text-white font-bold rounded-xl hover:bg-[#1b5e20] shadow-lg shadow-green-100 disabled:opacity-50 transition-all active:scale-[0.98] text-sm"
+                            >
+                                {processing ? 'Verifying Payment...' : "✅ I've Completed the Payment"}
+                            </button>
+
+                            <button
+                                onClick={() => setShowQR(false)}
+                                className="w-full py-2.5 mt-2 text-gray-500 text-xs font-semibold hover:bg-gray-50 rounded-lg transition-all"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

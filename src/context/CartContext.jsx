@@ -1,5 +1,6 @@
 // Cart Context - Manages shopping cart state with stock validation
 import { createContext, useContext, useState, useEffect } from 'react';
+import { parseQuantityToKg } from '../services/productService';
 import toast from 'react-hot-toast';
 
 const CartContext = createContext();
@@ -17,6 +18,17 @@ export const CartProvider = ({ children }) => {
         localStorage.setItem('e-grocery-cart', JSON.stringify(cartItems));
     }, [cartItems]);
 
+    // Calculate max cart items based on stock (for Vegetables, stock is in kg)
+    const getMaxItems = (product) => {
+        if (product.category === 'Vegetables') {
+            const kgPerUnit = parseQuantityToKg(product.selectedQuantity || product.quantity);
+            if (kgPerUnit && kgPerUnit > 0) {
+                return Math.floor(product.stock / kgPerUnit);
+            }
+        }
+        return product.stock;
+    };
+
     // Add item to cart with stock check
     const addToCart = (product) => {
         if (product.stock <= 0) {
@@ -24,11 +36,13 @@ export const CartProvider = ({ children }) => {
             return;
         }
 
+        const maxItems = getMaxItems(product);
         setCartItems(prev => {
             const existing = prev.find(item => item.id === product.id);
             if (existing) {
-                if (existing.quantity >= product.stock) {
-                    toast.error(`Only ${product.stock} items available in stock!`);
+                if (existing.quantity >= maxItems) {
+                    const stockLabel = product.category === 'Vegetables' ? `${product.stock} kg` : `${product.stock} items`;
+                    toast.error(`Only ${stockLabel} available in stock!`);
                     return prev;
                 }
                 toast.success(`${product.name} quantity updated!`);
@@ -44,13 +58,21 @@ export const CartProvider = ({ children }) => {
     };
 
     // Update item quantity
-    const updateQuantity = (productId, newQuantity, maxStock) => {
+    const updateQuantity = (productId, newQuantity, maxStock, category, variantQty) => {
         if (newQuantity < 1) {
             removeFromCart(productId);
             return;
         }
-        if (newQuantity > maxStock) {
-            toast.error(`Only ${maxStock} items available in stock!`);
+        let maxItems = maxStock;
+        if (category === 'Vegetables') {
+            const kgPerUnit = parseQuantityToKg(variantQty);
+            if (kgPerUnit && kgPerUnit > 0) {
+                maxItems = Math.floor(maxStock / kgPerUnit);
+            }
+        }
+        if (newQuantity > maxItems) {
+            const stockLabel = category === 'Vegetables' ? `${maxStock} kg` : `${maxStock} items`;
+            toast.error(`Only ${stockLabel} available in stock!`);
             return;
         }
         setCartItems(prev =>

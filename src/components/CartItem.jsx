@@ -1,5 +1,6 @@
 // Cart Item Component - Green themed individual cart item
 import { useCart } from '../context/CartContext';
+import { parseQuantityToKg } from '../services/productService';
 import { FiMinus, FiPlus, FiTrash2 } from 'react-icons/fi';
 
 const CartItem = ({ item }) => {
@@ -36,7 +37,7 @@ const CartItem = ({ item }) => {
                 <div className="flex items-center gap-2.5 mt-2">
                     <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
                         <button
-                            onClick={() => updateQuantity(item.id, item.quantity - 1, item.stock)}
+                            onClick={() => updateQuantity(item.id, item.quantity - 1, item.stock, item.category, item.selectedQuantity || item.quantity)}
                             className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-green-50 hover:text-[#2e7d32] transition-colors"
                         >
                             <FiMinus className="text-xs" />
@@ -45,13 +46,13 @@ const CartItem = ({ item }) => {
                             {item.quantity}
                         </span>
                         <button
-                            onClick={() => updateQuantity(item.id, item.quantity + 1, item.stock)}
+                            onClick={() => updateQuantity(item.id, item.quantity + 1, item.stock, item.category, item.selectedQuantity || item.quantity)}
                             className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-green-50 hover:text-[#2e7d32] transition-colors"
                         >
                             <FiPlus className="text-xs" />
                         </button>
                     </div>
-                    <span className="text-[10px] text-gray-400">Max: {item.stock}</span>
+                    <span className="text-[10px] text-gray-400">Max: {item.stock}{item.category === 'Vegetables' ? ' kg' : ''}</span>
                 </div>
             </div>
 

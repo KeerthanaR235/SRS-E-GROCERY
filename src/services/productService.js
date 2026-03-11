@@ -19,6 +19,17 @@ import { db, storage } from '../firebase/firebase';
 
 const PRODUCTS_COLLECTION = 'products';
 
+// Parse variant quantity string (e.g. "500g", "1kg", "1.5kg", "250g") to kg value
+export const parseQuantityToKg = (quantityStr) => {
+    if (!quantityStr) return null;
+    const str = String(quantityStr).trim().toLowerCase();
+    const kgMatch = str.match(/^([\d.]+)\s*kg$/);
+    if (kgMatch) return parseFloat(kgMatch[1]);
+    const gMatch = str.match(/^([\d.]+)\s*g$/);
+    if (gMatch) return parseFloat(gMatch[1]) / 1000;
+    return null;
+};
+
 // Get all products (real-time)
 export const subscribeToProducts = (callback) => {
     const q = query(collection(db, PRODUCTS_COLLECTION), orderBy('createdAt', 'desc'));
@@ -121,8 +132,14 @@ export const deductStock = async (items) => {
 
         if (productSnap.exists()) {
             const data = productSnap.data();
+            const isVegetable = data.category === 'Vegetables';
+            // For vegetables: convert variant quantity to kg and deduct that amount
+            const variantQty = item.selectedQuantity || item.quantity || '';
+            const kgPerUnit = isVegetable ? parseQuantityToKg(variantQty) : null;
+            const deductAmount = (isVegetable && kgPerUnit) ? kgPerUnit * item.quantity : item.quantity;
+
             const currentStock = Number(data.stock || 0);
-            const newStock = Math.max(0, currentStock - item.quantity);
+            const newStock = Math.max(0, currentStock - deductAmount);
 
             let updateData = { stock: newStock };
 
@@ -133,14 +150,14 @@ export const deductStock = async (items) => {
                     variants: b.variants.map(v => ({ ...v }))
                 }));
                 const brandName = item.selectedBrand || '';
-                const variantQty = item.selectedQuantity || '';
+                const variantQtyStr = item.selectedQuantity || '';
                 let matched = false;
 
                 for (const brand of newBrands) {
                     if (brand.name === brandName) {
                         for (const variant of brand.variants) {
-                            if (variant.quantity === variantQty) {
-                                variant.stock = Math.max(0, Number(variant.stock || 0) - item.quantity);
+                            if (variant.quantity === variantQtyStr) {
+                                variant.stock = Math.max(0, Number(variant.stock || 0) - deductAmount);
                                 matched = true;
                                 break;
                             }
@@ -151,7 +168,7 @@ export const deductStock = async (items) => {
 
                 // Fallback: deduct from first variant if no match
                 if (!matched && newBrands[0].variants && newBrands[0].variants.length > 0) {
-                    newBrands[0].variants[0].stock = Math.max(0, Number(newBrands[0].variants[0].stock || 0) - item.quantity);
+                    newBrands[0].variants[0].stock = Math.max(0, Number(newBrands[0].variants[0].stock || 0) - deductAmount);
                 }
 
                 updateData.brands = newBrands;
@@ -185,8 +202,13 @@ export const restockItems = async (items) => {
 
         if (productSnap.exists()) {
             const data = productSnap.data();
+            const isVegetable = data.category === 'Vegetables';
+            const variantQty = item.selectedQuantity || item.quantity || '';
+            const kgPerUnit = isVegetable ? parseQuantityToKg(variantQty) : null;
+            const restockAmount = (isVegetable && kgPerUnit) ? kgPerUnit * item.quantity : item.quantity;
+
             const currentStock = Number(data.stock || 0);
-            const newStock = currentStock + item.quantity;
+            const newStock = currentStock + restockAmount;
 
             let updateData = { stock: newStock };
 
@@ -197,14 +219,14 @@ export const restockItems = async (items) => {
                     variants: b.variants.map(v => ({ ...v }))
                 }));
                 const brandName = item.selectedBrand || '';
-                const variantQty = item.selectedQuantity || '';
+                const variantQtyStr = item.selectedQuantity || '';
                 let matched = false;
 
                 for (const brand of newBrands) {
                     if (brand.name === brandName) {
                         for (const variant of brand.variants) {
-                            if (variant.quantity === variantQty) {
-                                variant.stock = Number(variant.stock || 0) + item.quantity;
+                            if (variant.quantity === variantQtyStr) {
+                                variant.stock = Number(variant.stock || 0) + restockAmount;
                                 matched = true;
                                 break;
                             }
@@ -215,7 +237,7 @@ export const restockItems = async (items) => {
 
                 // Fallback: restock first variant if no match
                 if (!matched && newBrands[0].variants && newBrands[0].variants.length > 0) {
-                    newBrands[0].variants[0].stock = Number(newBrands[0].variants[0].stock || 0) + item.quantity;
+                    newBrands[0].variants[0].stock = Number(newBrands[0].variants[0].stock || 0) + restockAmount;
                 }
 
                 updateData.brands = newBrands;

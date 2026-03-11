@@ -246,9 +246,14 @@ const ProductsManagement = ({ products }) => {
                                                     className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-green-500 focus:outline-none" placeholder="Price" />
                                             </div>
                                             <div className="flex-1">
-                                                <label className="text-[10px] font-bold text-gray-400 block mb-0.5">Stock</label>
-                                                <input type="number" value={v.stock} onChange={e => handleEditVariantChange(bIdx, vIdx, 'stock', e.target.value)}
-                                                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-green-500 focus:outline-none" placeholder="Stock" />
+                                                <label className="text-[10px] font-bold text-gray-400 block mb-0.5">Stock{editData.category === 'Vegetables' ? ' (kg)' : ''}</label>
+                                                <div className="flex items-center gap-1">
+                                                    <input type="number" value={v.stock} onChange={e => handleEditVariantChange(bIdx, vIdx, 'stock', e.target.value)}
+                                                        className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-green-500 focus:outline-none" placeholder="Stock" />
+                                                    {editData.category === 'Vegetables' && (
+                                                        <span className="text-xs font-bold text-gray-500">kg</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -460,8 +465,8 @@ const AddProduct = () => {
                                                                 </div>
                                                             </div>
                                                             <div className="space-y-1.5">
-                                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Stock</label>
-                                                                <div className="flex gap-2">
+                                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Stock{form.category === 'Vegetables' ? ' (kg)' : ''}</label>
+                                                                <div className="flex gap-2 items-center">
                                                                     <input
                                                                         type="number"
                                                                         value={variant.stock}
@@ -469,6 +474,9 @@ const AddProduct = () => {
                                                                         className="w-full px-3 py-2 bg-[#f8fafb] border-none rounded-lg text-xs font-bold focus:ring-1 focus:ring-blue-500 outline-none"
                                                                         placeholder="0"
                                                                     />
+                                                                    {form.category === 'Vegetables' && (
+                                                                        <span className="text-xs font-bold text-gray-500">kg</span>
+                                                                    )}
                                                                     {brand.variants.length > 1 && (
                                                                         <button
                                                                             type="button"

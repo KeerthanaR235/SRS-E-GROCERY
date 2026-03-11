@@ -88,7 +88,7 @@ const ProductCard = ({ product, onViewDetails }) => {
                 {/* Interaction / Views */}
                 <div className="flex items-center gap-1.5 text-gray-400 mb-4">
                     <FiEye className="text-[13px]" />
-                    <span className="text-[11px] font-bold">{totalStock} in stock</span>
+                    <span className="text-[11px] font-bold">{totalStock}{product.category === 'Vegetables' ? ' kg' : ''} in stock</span>
                 </div>
 
                 {/* Price & Add to Cart */}

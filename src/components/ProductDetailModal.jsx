@@ -4,6 +4,7 @@ import { FiX, FiHeart, FiMinus, FiPlus, FiShield, FiTruck, FiShoppingCart } from
 import { FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
+import { parseQuantityToKg } from '../services/productService';
 
 const ProductDetailModal = ({ product, isOpen, onClose }) => {
     const { addToCart } = useCart();
@@ -31,6 +32,9 @@ const ProductDetailModal = ({ product, isOpen, onClose }) => {
     const selectedVariant = selectedBrand.variants[selectedVariantIndex] || selectedBrand.variants[0];
     const variantPrice = Number(selectedVariant.price);
     const variantStock = Number(selectedVariant.stock);
+    const isVegetable = product.category === 'Vegetables';
+    const kgPerUnit = isVegetable ? parseQuantityToKg(selectedVariant.quantity) : null;
+    const maxItems = (isVegetable && kgPerUnit && kgPerUnit > 0) ? Math.floor(variantStock / kgPerUnit) : variantStock;
     const totalPrice = variantPrice * quantity;
     const isOutOfStock = variantStock <= 0;
 
@@ -182,7 +186,7 @@ const ProductDetailModal = ({ product, isOpen, onClose }) => {
                                         >
                                             {variant.quantity} - ₹{Number(variant.price)}
                                             <span className={`ml-1 text-[10px] ${selectedVariantIndex === idx ? 'text-green-200' : Number(variant.stock) <= 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                                                ({Number(variant.stock) <= 0 ? 'Out of stock' : `${variant.stock} left`})
+                                                ({Number(variant.stock) <= 0 ? 'Out of stock' : `${variant.stock}${product.category === 'Vegetables' ? ' kg' : ''} left`})
                                             </span>
                                         </button>
                                     ))}
@@ -204,7 +208,7 @@ const ProductDetailModal = ({ product, isOpen, onClose }) => {
                                     {quantity}
                                 </span>
                                 <button
-                                    onClick={() => setQuantity(q => Math.min(variantStock, q + 1))}
+                                    onClick={() => setQuantity(q => Math.min(maxItems, q + 1))}
                                     className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
                                 >
                                     <FiPlus />
