@@ -390,7 +390,7 @@ const AddProduct = () => {
                                     onChange={e => setForm({ ...form, category: e.target.value })}
                                     className="w-full px-4 py-3 bg-[#f3f6f9] border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-green-500 transition-all outline-none appearance-none"
                                 >
-                                    {['Vegetables', 'Dairy', 'Grains', 'Beverages', 'Household', 'Snacks', 'Leafy Greens', 'Chocolates', 'Biscuits'].map(c => (
+                                    {['Vegetables', 'Dairy', 'Grains & Cereals', 'Pulses', 'Flours', 'Beverages', 'Household', 'Leafy Greens', 'Chocolates', 'Biscuits'].map(c => (
                                         <option key={c} value={c}>{c}</option>
                                     ))}
                                 </select>
